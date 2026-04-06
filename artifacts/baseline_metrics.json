@@ -1,0 +1,13 @@
+{
+  "roc_auc": 0.9874795955285969,
+  "optimal_threshold": 0.4773269066683636,
+  "selected_threshold": 0.4773269066683636,
+  "test_recall": 0.9248554913294798,
+  "test_fpr": 0.02850426094622392,
+  "confusion_matrix": {
+    "tp": 160,
+    "tn": 3306,
+    "fp": 97,
+    "fn": 13
+  }
+}
