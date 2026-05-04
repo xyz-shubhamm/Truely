@@ -1,0 +1,9 @@
+{
+  "decision_threshold": 0.05,
+  "total_rows": 17880,
+  "total_errors": 1158,
+  "top_100_count": 100,
+  "false_negative_count": 1,
+  "false_positive_count": 1157,
+  "output_csv": "C:\\Users\\Shubham\\OneDrive\\Desktop\\ip2 project dataset\\artifacts\\top_100_failure_cases.csv"
+}

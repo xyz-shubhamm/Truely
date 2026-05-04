@@ -1,0 +1,6 @@
+{
+  "fraud_risk_threshold_percent": 52.0,
+  "selected_probability_threshold": 0.52,
+  "selection_objective": "fixed_production_threshold"
+}
+

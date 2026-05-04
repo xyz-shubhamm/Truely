@@ -10,3 +10,7 @@ psycopg[binary]==3.2.13
 PyJWT==2.10.1
 torch==2.1.2
 transformers==4.41.2
+email-validator==2.1.1
+dnspython==2.6.1
+requests>=2.31.0
+beautifulsoup4>=4.12.0
