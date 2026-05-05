@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://your-render-url.onrender.com/api/:path*"
+      "destination": "https://truely.onrender.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://your-render-url.onrender.com/auth/:path*"
+      "destination": "https://truely.onrender.com/auth/:path*"
     }
   ]
 }
