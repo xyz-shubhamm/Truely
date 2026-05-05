@@ -70,7 +70,16 @@ function AppShell() {
     if (!supabase) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
+      // Only trigger sync if we actually have a session and either NO token or a changed session
+      if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        const storedToken = localStorage.getItem(TOKEN_KEY);
+        
+        // If we already have a token and it's not a fresh sign in, don't show the loading overlay
+        // This prevents the "Verifying Session" flicker on tab switches or re-focus
+        if (storedToken && event === 'INITIAL_SESSION') {
+          return; 
+        }
+
         setAuthLoading(true);
         try {
           const response = await fetch('/auth/google', {
@@ -81,7 +90,6 @@ function AppShell() {
           if (response.ok) {
             const data = await response.json();
             saveSession(data.token, data.user);
-            // Only redirect if we are on login or landing to avoid interrupting active research
             if (location.pathname === '/login' || location.pathname === '/') {
               navigate('/verify');
             }
@@ -635,80 +643,85 @@ function AppShell() {
   };
 
   const renderResearchReport = () => {
-    if (!researchResult) {
-      console.log('No researchResult found, redirecting...');
-      return <Navigate to="/research" />;
-    }
+    if (!researchResult) return <Navigate to="/research" />;
     const wiki = researchResult.wikipedia || {};
-    
+    const reviews = researchResult.reviews || [];
+    const techReviews = reviews.filter(r => ['LeetCode Discuss', 'Hacker News', 'StackOverflow'].includes(r.source));
+    const cultureReviews = reviews.filter(r => r.source === 'Reddit');
+
     return (
-      <main className="max-w-[1200px] mx-auto px-gutter py-xxl reveal min-h-screen">
-        <div className="flex flex-col md:flex-row gap-xl items-start mb-xxl">
-          <div className="w-32 h-32 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#1A1625] p-4 border border-slate-100 dark:border-slate-800 shrink-0 hover:scale-105 transition-transform duration-500">
-            <img 
-              src={researchResult.logo_url || `https://logo.clearbit.com/${researchResult.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`} 
-              alt={researchResult.company} 
-              className="w-full h-full object-contain dark:brightness-90"
-              onError={(e) => {
-                e.target.onerror = null;
-                // Prefer favicon over Wikipedia thumbnail which often shows buildings
-                const domain = researchResult.logo_url ? researchResult.logo_url.split('/').pop() : (researchResult.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com');
-                e.target.src = `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
-              }}
-            />
-          </div>
-          <div className="flex-grow">
-            <div className="flex items-center gap-3 mb-2">
-              <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${researchResult.trust_level === 'High' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                {researchResult.trust_level} Trust Level
-              </span>
+      <main className="max-w-[1400px] mx-auto px-6 md:px-12 py-12 md:py-24 reveal min-h-screen">
+        {/* Balanced Header */}
+        <div className="flex flex-col lg:flex-row gap-12 items-start lg:items-center mb-20 pb-12 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col md:flex-row gap-8 items-center flex-grow">
+            <div className="w-40 h-40 rounded-[40px] overflow-hidden shadow-2xl bg-white dark:bg-[#1A1625] p-6 border border-slate-100 dark:border-slate-800 shrink-0 hover:scale-105 transition-all duration-700">
+              <img 
+                src={researchResult.logo_url || `https://logo.clearbit.com/${researchResult.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`} 
+                alt={researchResult.company} 
+                className="w-full h-full object-contain dark:brightness-90"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  const domain = researchResult.logo_url ? researchResult.logo_url.split('/').pop() : (researchResult.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com');
+                  e.target.src = `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
+                }}
+              />
             </div>
-            <h1 className="font-h1 text-h1 text-on-surface dark:text-violet-200 mb-2">{researchResult.company}</h1>
-            {researchForm.role && <p className="text-on-surface-variant dark:text-violet-300/60 font-medium">Researching for: {researchForm.role}</p>}
+            <div className="text-center md:text-left space-y-3">
+              <div className="flex flex-wrap justify-center md:justify-start items-center gap-3">
+                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-sm ${researchResult.trust_level === 'High' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'}`}>
+                  {researchResult.trust_level} Trust
+                </span>
+                <span className="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Verified Intelligence</span>
+              </div>
+              <h1 className="font-display text-5xl md:text-7xl font-black text-on-surface dark:text-white tracking-tightest leading-none">{researchResult.company}</h1>
+              {researchForm.role && <p className="text-xl text-on-surface-variant dark:text-violet-300/60 font-medium">Research Audit for {researchForm.role}</p>}
+            </div>
           </div>
-          <div className="bg-white dark:bg-[#1A1625] p-6 rounded-card border border-slate-100 dark:border-slate-800 soft-shadow text-center min-w-[160px]">
-             <div className="text-3xl font-extrabold text-primary-container mb-1">{researchResult.trust_score}</div>
-             <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Trust Score</div>
+          <div className="bg-white dark:bg-[#1A1625] p-8 rounded-[40px] border border-slate-100 dark:border-slate-800 luxury-shadow text-center min-w-[200px] flex flex-col items-center">
+             <div className="text-5xl font-black text-primary-container dark:text-violet-400 mb-2 leading-none">{researchResult.trust_score}</div>
+             <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Trust Quotient</div>
+             <div className="mt-4 w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-primary-container transition-all duration-1000" style={{width: `${researchResult.trust_score}%`}}></div>
+             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {/* Column 1: Core Overview */}
-          <div className="space-y-gutter">
-            <section className="bg-white dark:bg-[#1A1625] p-xl rounded-card soft-shadow border border-white dark:border-slate-800 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-              <h3 className="font-h2 text-h2 mb-6 dark:text-violet-200">Company Overview</h3>
-              <p className="text-body-md text-on-surface-variant leading-relaxed mb-8">
-                {wiki.description || "No detailed description available for this company."}
+        {/* Dynamic Multi-Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Sidebar: Profile & Facts */}
+          <div className="lg:col-span-4 space-y-12">
+            <section className="bg-white dark:bg-[#1A1625] p-10 rounded-[40px] luxury-shadow border border-white dark:border-slate-800">
+              <h3 className="font-display text-xs font-black mb-8 text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Organization Profile</h3>
+              <p className="text-body-md text-on-surface-variant dark:text-slate-300 leading-relaxed mb-10 font-medium italic opacity-90">
+                "{wiki.description || "No public history found in global encyclopedia records."}"
               </p>
               
-              <div className={`grid ${wiki.founders ? 'grid-cols-3' : 'grid-cols-2'} gap-4 pt-8 border-t border-slate-100`}>
+              <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-100 dark:border-slate-800">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Founded</p>
-                  <p className="font-semibold text-on-surface">{wiki.founding_year || 'Unknown'}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Established</p>
+                  <p className="font-black text-xl text-on-surface dark:text-white">{wiki.founding_year || 'Unknown'}</p>
                 </div>
-                {wiki.founders && (
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Founder</p>
-                    <p className="font-semibold text-on-surface line-clamp-1" title={wiki.founders}>{wiki.founders}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Leadership</p>
+                  <p className="font-bold text-sm text-on-surface dark:text-white truncate" title={wiki.founders}>{wiki.founders || 'Not Public'}</p>
+                </div>
               </div>
             </section>
 
-            <div className="bg-surface-container-low dark:bg-slate-900/50 p-xl rounded-card border border-white dark:border-slate-800 hover:shadow-lg transition-all">
-              <h4 className="font-bold text-sm mb-4 dark:text-white">Risk Assessment</h4>
-              <ul className="space-y-4">
-                <li className="flex gap-3">
-                  <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
-                  <p className="text-xs text-on-surface-variant dark:text-slate-400">Verified corporate history in public records.</p>
+            <div className="bg-surface-container-low dark:bg-slate-900/40 p-10 rounded-[40px] border border-white dark:border-slate-800 shadow-sm space-y-8">
+              <h4 className="text-[10px] font-black text-primary-container dark:text-violet-400 uppercase tracking-[0.3em]">Reputation Audit</h4>
+              <ul className="space-y-6">
+                <li className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-emerald-500 text-sm">check</span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-400 font-medium">Verified corporate existence in public records.</p>
                 </li>
-                <li className="flex gap-3">
-                  <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
-                  <p className="text-xs text-on-surface-variant dark:text-slate-400">No known recruitment scams reported.</p>
-                </li>
-                <li className="flex gap-3">
-                  <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
-                  <p className="text-xs text-on-surface-variant dark:text-slate-400">Consistent headquarters data.</p>
+                <li className="flex gap-4">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-emerald-500 text-sm">check</span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-400 font-medium">No verified recruitment fraud reports.</p>
                 </li>
               </ul>
             </div>
@@ -718,75 +731,83 @@ function AppShell() {
                 href={wiki.url} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="flex items-center justify-between p-6 bg-slate-900 text-white rounded-card hover:bg-slate-800 hover:shadow-xl transition-all group"
+                className="flex items-center justify-between p-8 bg-slate-900 text-white rounded-[32px] hover:bg-slate-800 hover:shadow-2xl transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <span className="material-symbols-outlined text-emerald-400">public</span>
-                  <span className="font-semibold">Wikipedia</span>
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-emerald-400">public</span>
+                  </div>
+                  <span className="font-black text-sm uppercase tracking-widest">Public Record</span>
                 </div>
-                <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                <span className="material-symbols-outlined group-hover:translate-x-2 transition-transform">arrow_forward_ios</span>
               </a>
             )}
           </div>
 
-          {/* Column 2: Professional Feed (LeetCode & HN) */}
-          <div className="space-y-gutter">
-            <div className="flex items-center justify-between px-1">
-              <h4 className="font-bold text-sm text-slate-900 dark:text-violet-200">Technical Insights</h4>
-              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-400/10 px-2 py-0.5 rounded uppercase">Community Verified</span>
-            </div>
-            
-            {(researchResult.reviews || []).filter(r => r.source === 'LeetCode Discuss' || r.source === 'Hacker News' || r.source === 'StackOverflow').length === 0 ? (
-              <div className="bg-white/50 border border-dashed border-slate-200 p-8 rounded-card text-center italic text-xs text-slate-400">
-                No technical discussions found.
+          {/* Feed Column: Technical & Cultural Intelligence */}
+          <div className="lg:col-span-8 space-y-12">
+            {/* Technical Feed (Masonry Style with CSS Columns) */}
+            <div className="space-y-8">
+              <div className="flex items-center justify-between px-2">
+                <h4 className="text-xl font-display font-black text-slate-900 dark:text-white uppercase tracking-tight">Technical Intelligence</h4>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Dev Community</span>
+                </div>
               </div>
-            ) : (
-              (researchResult.reviews || [])
-                .filter(r => r.source === 'LeetCode Discuss' || r.source === 'Hacker News' || r.source === 'StackOverflow')
-                .map((rev, i) => (
-                  <a key={i} href={rev.url} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-[#1A1625] p-5 rounded-card soft-shadow border border-slate-100 dark:border-slate-800 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                        rev.source === 'LeetCode Discuss' ? 'bg-amber-100 dark:bg-amber-400/10 text-amber-700 dark:text-amber-400' : 
-                        rev.source === 'Hacker News' ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400' : 'bg-blue-100 dark:bg-blue-400/10 text-blue-700 dark:text-blue-400'
-                      }`}>{rev.source}</span>
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{rev.score || rev.views || ''} engagement</span>
-                    </div>
-                    <h5 className="text-sm font-bold text-slate-800 dark:text-white mb-2 leading-snug">{rev.title}</h5>
-                    <p className="text-xs text-slate-500 dark:text-violet-300/50 line-clamp-3 leading-relaxed">{rev.text}</p>
-                  </a>
-                ))
-            )}
-          </div>
-
-          {/* Column 3: Culture Feed (Reddit) */}
-          <div className="space-y-gutter">
-            <div className="flex items-center justify-between px-1">
-              <h4 className="font-bold text-sm text-slate-900">Culture & Reputation</h4>
-              <div className="flex gap-1">
-                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                 <span className="text-[10px] font-bold text-slate-400 uppercase">Live Reddit Feed</span>
+              
+              <div className="columns-1 md:columns-2 gap-8 space-y-8">
+                {techReviews.length === 0 ? (
+                  <div className="break-inside-avoid bg-white/50 border-2 border-dashed border-slate-200 p-12 rounded-[40px] text-center italic text-xs text-slate-400 col-span-full">
+                    No technical discussions identified.
+                  </div>
+                ) : (
+                  techReviews.map((rev, i) => (
+                    <a key={i} href={rev.url} target="_blank" rel="noopener noreferrer" className="break-inside-avoid block bg-white dark:bg-[#1A1625] p-8 rounded-[32px] luxury-shadow border border-slate-100 dark:border-slate-800 hover:scale-[1.02] transition-all duration-500 mb-8">
+                      <div className="flex items-center justify-between mb-6">
+                        <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm ${
+                          rev.source === 'LeetCode Discuss' ? 'bg-amber-100 text-amber-700' : 
+                          rev.source === 'Hacker News' ? 'bg-slate-900 text-white' : 'bg-blue-100 text-blue-700'
+                        }`}>{rev.source}</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{rev.score || rev.views || 'Verified'} Activity</span>
+                      </div>
+                      <h5 className="text-lg font-black text-slate-900 dark:text-white mb-4 leading-tight">{rev.title}</h5>
+                      <p className="text-xs text-slate-500 dark:text-violet-300/60 line-clamp-4 leading-relaxed font-medium">{rev.text}</p>
+                    </a>
+                  ))
+                )}
               </div>
             </div>
 
-            {(researchResult.reviews || []).filter(r => r.source === 'Reddit').length === 0 ? (
-              <div className="bg-white/50 border border-dashed border-slate-200 p-8 rounded-card text-center italic text-xs text-slate-400">
-                No cultural reviews found.
+            {/* Cultural Feed (Masonry Style) */}
+            <div className="space-y-8">
+              <div className="flex items-center justify-between px-2">
+                <h4 className="text-xl font-display font-black text-slate-900 dark:text-white uppercase tracking-tight">Cultural Intelligence</h4>
+                <div className="flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Public Sentiment</span>
+                </div>
               </div>
-            ) : (
-              (researchResult.reviews || [])
-                .filter(r => r.source === 'Reddit')
-                .map((rev, i) => (
-                  <a key={i} href={rev.url} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-[#1A1625] p-5 rounded-card soft-shadow border border-slate-100 dark:border-slate-800 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase bg-orange-100 dark:bg-orange-400/10 text-orange-700 dark:text-orange-400">Reddit</span>
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{rev.score} pts</span>
-                    </div>
-                    <h5 className="text-sm font-bold text-slate-800 dark:text-white mb-2 leading-snug">{rev.title}</h5>
-                    <p className="text-xs text-slate-500 dark:text-violet-300/50 line-clamp-3 leading-relaxed">{rev.text}</p>
-                  </a>
-                ))
-            )}
+
+              <div className="columns-1 md:columns-2 gap-8 space-y-8">
+                {cultureReviews.length === 0 ? (
+                  <div className="break-inside-avoid bg-white/50 border-2 border-dashed border-slate-200 p-12 rounded-[40px] text-center italic text-xs text-slate-400 col-span-full">
+                    No community reviews found.
+                  </div>
+                ) : (
+                  cultureReviews.map((rev, i) => (
+                    <a key={i} href={rev.url} target="_blank" rel="noopener noreferrer" className="break-inside-avoid block bg-white dark:bg-[#1A1625] p-8 rounded-[32px] luxury-shadow border border-slate-100 dark:border-slate-800 hover:scale-[1.02] transition-all duration-500 mb-8">
+                      <div className="flex items-center justify-between mb-6">
+                        <span className="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-orange-500 text-white shadow-sm">Reddit</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{rev.score} Impact</span>
+                      </div>
+                      <h5 className="text-lg font-black text-slate-900 dark:text-white mb-4 leading-tight">{rev.title}</h5>
+                      <p className="text-xs text-slate-500 dark:text-violet-300/60 line-clamp-4 leading-relaxed font-medium">{rev.text}</p>
+                    </a>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </main>
