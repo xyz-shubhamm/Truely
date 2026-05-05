@@ -368,6 +368,9 @@ function AppShell() {
                       title: data.extracted_title || f.title || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' '),
                       company_profile: data.extracted_company || f.company_profile || 'Unknown'
                     }));
+                    if (!data.extracted_title || !data.extracted_company) {
+                      setError('PDF text extracted, but some fields could not be identified automatically. Please review them.');
+                    }
                   }
                 } catch (err) { setError('Failed to extract PDF text'); }
                 setLoading(false);
@@ -395,6 +398,9 @@ function AppShell() {
                       title: data.extracted_title || f.title || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' '),
                       company_profile: data.extracted_company || f.company_profile || 'Unknown'
                     }));
+                    if (!data.extracted_title || !data.extracted_company) {
+                      setError('PDF text extracted, but some fields could not be identified automatically. Please review them.');
+                    }
                   }
                   } catch (err) { setError('Failed to extract PDF text'); }
                   setLoading(false);
@@ -484,51 +490,112 @@ function AppShell() {
     if (!result) return <Navigate to="/verify" />;
     return (
       <main className="max-w-[1200px] mx-auto px-8 py-12 reveal">
-        <div className="mb-12">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-label-caps font-label-caps text-primary-container px-2 py-1 bg-primary-fixed rounded uppercase">ANALYSIS COMPLETE</span>
+        <div className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-[10px] font-black text-primary-container px-3 py-1 bg-primary-container/10 border border-primary-container/20 rounded-full uppercase tracking-widest">ANALYSIS COMPLETE</span>
+              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${result.prediction === 'fake' ? 'bg-error/10 text-error border border-error/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                Verdict: {result.prediction.toUpperCase()}
+              </span>
+            </div>
+            <h1 className="font-h1 text-3xl md:text-5xl text-on-surface dark:text-white mb-3 tracking-tightest leading-tight">
+              {result.title || 'Job Analysis Report'}
+            </h1>
+            <p className="text-lg md:text-xl text-on-surface-variant dark:text-violet-300/60 font-medium">
+              {result.company || 'Unknown Organization'}
+            </p>
           </div>
-          <h1 className="font-h1 text-h1 text-on-surface dark:text-white mb-2">Analysis Report</h1>
-          <p className="text-on-surface-variant dark:text-slate-400">Verdict: {result.prediction.toUpperCase()}</p>
+          <button 
+            onClick={() => navigate('/verify')}
+            className="flex items-center gap-2 px-6 py-3 bg-surface-container-high dark:bg-slate-800 rounded-2xl text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+          >
+            <span className="material-symbols-outlined text-sm">restart_alt</span>
+            New Analysis
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter">
-          <div className="md:col-span-4 bg-white dark:bg-[#1A1625] soft-shadow card-radius p-8 flex flex-col items-center justify-center text-center border border-white dark:border-slate-800 h-fit">
-            <h3 className="font-h2 text-h2 mb-8 text-on-surface dark:text-violet-200">Risk Score</h3>
-            <div className="relative w-48 h-48 mb-8">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle className="text-surface-container-high dark:text-slate-800" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="4"></circle>
-                <circle 
-                  className={result.risk_score > 50 ? "text-error" : "text-emerald-500"} 
-                  cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" 
-                  strokeDasharray="552.92" 
-                  strokeDashoffset={552.92 - (552.92 * result.risk_score / 100)} 
-                  strokeLinecap="round" strokeWidth="6"
-                  style={{transition: 'stroke-dashoffset 1s ease-out'}}
-                ></circle>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-extrabold text-on-surface dark:text-white tracking-tight">{Math.round(result.risk_score)}</span>
-                <span className="text-label-caps font-label-caps text-outline dark:text-slate-500 uppercase">Out of 100</span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-4 space-y-8">
+            <div className="bg-white dark:bg-[#1A1625] soft-shadow card-radius p-8 flex flex-col items-center justify-center text-center border border-white dark:border-slate-800">
+              <h3 className="font-h2 text-xl mb-8 text-on-surface dark:text-violet-200 uppercase tracking-widest">Risk Score</h3>
+              <div className="relative w-48 h-48 mb-8">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle className="text-surface-container-high dark:text-slate-800" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="4"></circle>
+                  <circle 
+                    className={result.risk_score > 35 ? "text-error" : "text-emerald-500"} 
+                    cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" 
+                    strokeDasharray="552.92" 
+                    strokeDashoffset={552.92 - (552.92 * result.risk_score / 100)} 
+                    strokeLinecap="round" strokeWidth="8"
+                    style={{transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)'}}
+                  ></circle>
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-5xl font-black text-on-surface dark:text-white tracking-tighter">{Math.round(result.risk_score)}</span>
+                  <span className="text-[10px] font-black text-outline dark:text-slate-500 uppercase tracking-widest mt-1">Out of 100</span>
+                </div>
               </div>
+              <p className="text-on-surface-variant dark:text-slate-500 text-xs leading-relaxed max-w-[200px]">
+                Analyzed via hybrid model & heuristic forensics.
+              </p>
             </div>
-            <p className="text-on-surface-variant dark:text-slate-500 text-sm">Based on model and heuristic analysis.</p>
+
+            {result.description_snippet && (
+              <div className="bg-surface-container-low dark:bg-slate-900/50 p-8 rounded-card border border-white dark:border-slate-800">
+                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">Job Overview</h4>
+                <p className="text-sm text-on-surface-variant dark:text-slate-400 leading-relaxed italic line-clamp-6">
+                  "{result.description_snippet}"
+                </p>
+              </div>
+            )}
           </div>
 
-          <div className="md:col-span-8 space-y-gutter">
+          <div className="lg:col-span-8 space-y-8">
             <div className="bg-white dark:bg-[#1A1625] rounded-card p-8 soft-shadow border border-white dark:border-slate-800">
-              <h4 className="text-h2 mb-6 dark:text-violet-200">Detection Highlights</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <h4 className="text-xl font-bold mb-8 dark:text-violet-200 flex items-center gap-3">
+                <span className="material-symbols-outlined text-error">analytics</span>
+                Detection Highlights
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {(result.risk_signals || []).map((sig, i) => (
-                  <div key={i} className="p-4 bg-surface-container-low dark:bg-slate-800/50 rounded-xl border border-white dark:border-slate-700/50">
-                    <p className="font-bold text-sm mb-1 dark:text-white">{sig.label}</p>
-                    <p className="text-xs text-on-surface-variant dark:text-slate-400 mb-2">{sig.detail}</p>
-                    <p className="text-[10px] font-mono bg-white dark:bg-slate-900 dark:text-slate-300 p-1 rounded">"{sig.evidence}"</p>
+                  <div key={i} className="p-6 bg-surface-container-low dark:bg-slate-800/40 rounded-2xl border border-white dark:border-slate-700/30 group hover:border-error/30 transition-all">
+                    <p className="font-bold text-sm mb-2 dark:text-white group-hover:text-error transition-colors">{sig.label}</p>
+                    <p className="text-xs text-on-surface-variant dark:text-slate-400 mb-4 leading-relaxed">{sig.detail}</p>
+                    <div className="text-[9px] font-mono bg-white dark:bg-slate-900 dark:text-slate-300 p-2 rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden text-ellipsis">
+                      <span className="opacity-40 mr-1">EVIDENCE:</span> {sig.evidence}
+                    </div>
                   </div>
                 ))}
-                {(result.risk_signals || []).length === 0 && <p className="text-on-surface-variant dark:text-slate-500 opacity-50 italic">No specific red flags matched.</p>}
+                {(result.risk_signals || []).length === 0 && (
+                  <div className="col-span-full py-12 text-center">
+                    <span className="material-symbols-outlined text-slate-200 dark:text-slate-800 text-6xl mb-4">verified_user</span>
+                    <p className="text-on-surface-variant dark:text-slate-500 font-medium italic">No specific fraud vectors were identified in this listing.</p>
+                  </div>
+                )}
               </div>
             </div>
+
+            {result.trust_signals && result.trust_signals.length > 0 && (
+              <div className="bg-emerald-500/5 dark:bg-emerald-500/5 rounded-card p-8 border border-emerald-500/10 dark:border-emerald-500/10">
+                <h4 className="text-xl font-bold mb-8 text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
+                  <span className="material-symbols-outlined">shield_check</span>
+                  Trust Indicators
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {result.trust_signals.map((sig, i) => (
+                    <div key={i} className="flex gap-4">
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-emerald-500 text-sm">done</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm dark:text-white mb-1">{sig.label}</p>
+                        <p className="text-xs text-on-surface-variant dark:text-slate-400 leading-relaxed">{sig.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>

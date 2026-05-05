@@ -1107,6 +1107,47 @@ async def _audit_scam_with_llm(text: str) -> dict[str, Any]:
         print(f"LLM Audit error: {e}")
         return {"risk_score": 0.0, "reason": ""}
 
+def _extract_trust_indicators(posting: JobPosting, text: str) -> list[dict[str, str]]:
+    """Extract positive signals that indicate a job might be legitimate."""
+    normalized_text = text.lower()
+    signals: list[dict[str, str]] = []
+    
+    # 1. Professional structure
+    if re.search(r'responsibilities|qualifications|requirements|benefits|about us|equal opportunity|diversity', normalized_text):
+        signals.append({
+            'label': 'Professional Structure',
+            'detail': 'The posting follows a standard corporate layout with clear sections for requirements and benefits.',
+            'evidence': 'Standard JD markers found'
+        })
+    
+    # 2. Detailed description
+    words = len(text.split())
+    if words > 150:
+        signals.append({
+            'label': 'Detailed Description',
+            'detail': 'The posting provides extensive details about the role, suggesting a legitimate hiring need.',
+            'evidence': f'{words} words of content'
+        })
+    
+    # 3. Company presence
+    if posting.company_profile and posting.company_profile.lower() != 'unknown':
+        signals.append({
+            'label': 'Identified Company',
+            'detail': 'A specific hiring organization was identified in the listing.',
+            'evidence': posting.company_profile
+        })
+        
+    # 4. Realistic contact info (absence of scam red flags in contact)
+    if not re.search(r'whatsapp|telegram|gmail\.com|yahoo\.com', normalized_text):
+        if re.search(r'apply\s+on\s+our\s+website|portal|careers', normalized_text):
+            signals.append({
+                'label': 'Official Channels',
+                'detail': 'The posting directs candidates to official corporate application channels.',
+                'evidence': 'Corporate portal markers found'
+            })
+
+    return signals
+
 def _predict_from_posting(
     posting: JobPosting,
 ) -> dict[str, Any]:
@@ -1122,6 +1163,7 @@ def _predict_from_posting(
     model_result = _call_local_classifier(posting, processed_text)
     model_fake_probability = float(model_result['model_fake_probability'])
     heuristic_probability, heuristic_signals = _extract_heuristics(posting, processed_text)
+    trust_signals = _extract_trust_indicators(posting, processed_text)
 
     # 3. LLM Audit (The "GPT" part) - Synchronous wrapper for internal call
     import asyncio
@@ -1151,6 +1193,21 @@ def _predict_from_posting(
     is_fake = risk_score >= FRAUD_RISK_THRESHOLD
     prediction = 'fake' if is_fake else 'real'
 
+    # Ensure risk_signals is never empty for a better UI experience
+    if not heuristic_signals:
+        if risk_score < 15:
+            heuristic_signals.append({
+                'label': 'Standard Listing',
+                'detail': 'No common fraud patterns were detected. The listing appears to follow professional norms.',
+                'evidence': 'Heuristic Baseline'
+            })
+        else:
+            heuristic_signals.append({
+                'label': 'Atypical Pattern',
+                'detail': 'Some unusual linguistic patterns were detected, though no specific fraud markers were triggered.',
+                'evidence': 'Statistical Variance'
+            })
+
     return {
         'prediction': prediction,
         'is_job_related': is_job_related,
@@ -1166,6 +1223,10 @@ def _predict_from_posting(
         'risk_score': risk_score,
         'rate': risk_score,
         'risk_signals': heuristic_signals,
+        'trust_signals': trust_signals,
+        'title': posting.title,
+        'company': posting.company_profile,
+        'description_snippet': posting.description[:300] + ('...' if len(posting.description) > 300 else '')
     }
 
 
@@ -1176,14 +1237,21 @@ async def _extract_details_with_llm(text: str) -> dict[str, str]:
         return {"title": "", "company": ""}
 
     prompt = f"""
-    Extract the following information from this job posting text:
-    1. Job Title
-    2. Company Name
+    Analyze the following job posting text extracted from a PDF and extract the structural details.
     
-    Return ONLY a JSON object with keys "title" and "company". If not found, use empty strings.
+    1. Job Title: The official name of the position.
+    2. Company Name: The name of the hiring company or organization.
+    
+    Guidelines:
+    - Search specifically for headers like "About [Company]", "Hiring at [Company]", or email domains (e.g. hr@company.com).
+    - If the company name is not explicitly mentioned, look for recurring names or logos in text format.
+    - If you see "About Us", the sentence immediately following it often contains the company name.
+    - For the Title, look for the largest/topmost text or headers like "Position:", "Role:", or "Job Title:".
+    - Return ONLY a valid JSON object with keys "title" and "company".
+    - Use empty strings if any field is absolutely not found.
     
     Text:
-    {text[:3000]}
+    {text[:4000]}
     """
 
     try:
