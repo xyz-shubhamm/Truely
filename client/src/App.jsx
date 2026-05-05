@@ -109,7 +109,17 @@ function AppShell() {
     setUser(null);
     setJobHistory([]);
     setResearchHistory([]);
-    if (supabase) supabase.auth.signOut();
+  };
+
+  const handleSignOut = async () => {
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Sign out failed:', err);
+      }
+    }
+    clearAuthState();
   };
 
   const saveSession = (nextToken, nextUser) => {
@@ -901,7 +911,7 @@ function AppShell() {
                 <div className="flex items-center gap-4">
                   <div className="flex flex-col items-end hidden lg:flex">
                     <span className="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{user?.name}</span>
-                    <button onClick={clearAuthState} className="text-sm font-bold text-primary-container hover:underline">Sign Out</button>
+                    <button onClick={handleSignOut} className="text-sm font-bold text-primary-container hover:underline">Sign Out</button>
                   </div>
                   <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary-container text-sm md:text-base">
                     {user?.name?.[0] || 'U'}
@@ -931,7 +941,7 @@ function AppShell() {
                       <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary-container">{user?.name?.[0]}</div>
                       <span className="font-bold">{user?.name}</span>
                     </div>
-                    <button onClick={() => { clearAuthState(); setIsMobileMenuOpen(false); }} className="w-full py-4 text-error font-bold text-lg hover:bg-error/5 rounded-2xl transition-colors">Sign Out</button>
+                    <button onClick={() => { handleSignOut(); setIsMobileMenuOpen(false); }} className="w-full py-4 text-error font-bold text-lg hover:bg-error/5 rounded-2xl transition-colors">Sign Out</button>
                   </div>
                 )}
               </div>
