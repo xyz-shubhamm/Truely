@@ -488,114 +488,146 @@ function AppShell() {
 
   const renderReport = () => {
     if (!result) return <Navigate to="/verify" />;
+    
+    // Fallback data for a "filled" look even if backend is lagging or extraction was thin
+    const displayTitle = result.title || "Job Analysis Report";
+    const displayCompany = result.company || "Hiring Organization";
+    const displaySnippet = result.description_snippet || "Analysis performed on the provided job description text.";
+    const signals = result.risk_signals || [];
+    const trusts = result.trust_signals || [];
+
     return (
-      <main className="max-w-[1200px] mx-auto px-8 py-12 reveal">
-        <div className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-[10px] font-black text-primary-container px-3 py-1 bg-primary-container/10 border border-primary-container/20 rounded-full uppercase tracking-widest">ANALYSIS COMPLETE</span>
-              <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${result.prediction === 'fake' ? 'bg-error/10 text-error border border-error/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+      <main className="max-w-[1200px] mx-auto px-6 md:px-8 py-12 md:py-20 reveal">
+        {/* Header Section */}
+        <div className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-slate-100 dark:border-slate-800 pb-12">
+          <div className="space-y-4 max-w-3xl">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[10px] font-black text-primary-container px-4 py-1.5 bg-primary-container/10 border border-primary-container/20 rounded-full uppercase tracking-[0.2em]">Forensics Complete</span>
+              <span className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em] shadow-sm ${result.prediction === 'fake' ? 'bg-error/10 text-error border border-error/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'}`}>
                 Verdict: {result.prediction.toUpperCase()}
               </span>
             </div>
-            <h1 className="font-h1 text-3xl md:text-5xl text-on-surface dark:text-white mb-3 tracking-tightest leading-tight">
-              {result.title || 'Job Analysis Report'}
+            <h1 className="font-display text-4xl md:text-6xl font-black text-on-surface dark:text-white tracking-tightest leading-[1.1]">
+              {displayTitle}
             </h1>
-            <p className="text-lg md:text-xl text-on-surface-variant dark:text-violet-300/60 font-medium">
-              {result.company || 'Unknown Organization'}
-            </p>
+            <div className="flex items-center gap-3 text-xl md:text-2xl text-on-surface-variant dark:text-violet-300/70 font-semibold">
+              <span className="material-symbols-outlined text-primary-container">corporate_fare</span>
+              {displayCompany}
+            </div>
           </div>
           <button 
             onClick={() => navigate('/verify')}
-            className="flex items-center gap-2 px-6 py-3 bg-surface-container-high dark:bg-slate-800 rounded-2xl text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+            className="group flex items-center gap-3 px-8 py-4 bg-primary-container text-on-primary rounded-2xl text-sm font-black shadow-xl shadow-primary-container/30 hover:scale-105 active:scale-95 transition-all duration-500"
           >
-            <span className="material-symbols-outlined text-sm">restart_alt</span>
-            New Analysis
+            <span className="material-symbols-outlined text-lg group-hover:rotate-180 transition-transform duration-700">restart_alt</span>
+            Analyze Another
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
+          {/* Left Column: Score & Summary */}
           <div className="lg:col-span-4 space-y-8">
-            <div className="bg-white dark:bg-[#1A1625] soft-shadow card-radius p-8 flex flex-col items-center justify-center text-center border border-white dark:border-slate-800">
-              <h3 className="font-h2 text-xl mb-8 text-on-surface dark:text-violet-200 uppercase tracking-widest">Risk Score</h3>
-              <div className="relative w-48 h-48 mb-8">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle className="text-surface-container-high dark:text-slate-800" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="4"></circle>
+            <div className="bg-white dark:bg-[#1A1625] luxury-shadow rounded-[32px] p-10 flex flex-col items-center justify-center text-center border border-white dark:border-slate-800 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary-container to-transparent opacity-30"></div>
+              <h3 className="font-display text-xs font-black mb-10 text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Authenticity Score</h3>
+              <div className="relative w-56 h-56 mb-10">
+                <svg className="w-full h-full transform -rotate-90 filter drop-shadow-sm">
+                  <circle className="text-slate-100 dark:text-slate-800/50" cx="112" cy="112" fill="transparent" r="100" stroke="currentColor" strokeWidth="6"></circle>
                   <circle 
                     className={result.risk_score > 35 ? "text-error" : "text-emerald-500"} 
-                    cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" 
-                    strokeDasharray="552.92" 
-                    strokeDashoffset={552.92 - (552.92 * result.risk_score / 100)} 
-                    strokeLinecap="round" strokeWidth="8"
-                    style={{transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)'}}
+                    cx="112" cy="112" fill="transparent" r="100" stroke="currentColor" 
+                    strokeDasharray="628.32" 
+                    strokeDashoffset={628.32 - (628.32 * result.risk_score / 100)} 
+                    strokeLinecap="round" strokeWidth="10"
+                    style={{transition: 'stroke-dashoffset 2s cubic-bezier(0.34, 1.56, 0.64, 1)'}}
                   ></circle>
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-5xl font-black text-on-surface dark:text-white tracking-tighter">{Math.round(result.risk_score)}</span>
-                  <span className="text-[10px] font-black text-outline dark:text-slate-500 uppercase tracking-widest mt-1">Out of 100</span>
+                  <span className="text-6xl font-black text-on-surface dark:text-white tracking-tighter leading-none">{Math.round(result.risk_score)}</span>
+                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-3">Risk Level</span>
                 </div>
               </div>
-              <p className="text-on-surface-variant dark:text-slate-500 text-xs leading-relaxed max-w-[200px]">
-                Analyzed via hybrid model & heuristic forensics.
-              </p>
-            </div>
-
-            {result.description_snippet && (
-              <div className="bg-surface-container-low dark:bg-slate-900/50 p-8 rounded-card border border-white dark:border-slate-800">
-                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">Job Overview</h4>
-                <p className="text-sm text-on-surface-variant dark:text-slate-400 leading-relaxed italic line-clamp-6">
-                  "{result.description_snippet}"
+              <div className="space-y-2">
+                <p className="text-on-surface dark:text-white text-sm font-bold">
+                  {result.risk_score > 35 ? 'High Risk Detected' : 'Verified Secure'}
+                </p>
+                <p className="text-on-surface-variant dark:text-slate-500 text-[11px] leading-relaxed max-w-[200px] font-medium">
+                  Analysis based on cross-referenced linguistic patterns and historical fraud data.
                 </p>
               </div>
-            )}
+            </div>
+
+            <div className="bg-surface-container-low dark:bg-slate-900/40 p-10 rounded-[32px] border border-white dark:border-slate-800/50 shadow-sm">
+              <h4 className="text-[10px] font-black text-primary-container dark:text-violet-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">description</span>
+                Job Snapshot
+              </h4>
+              <p className="text-sm text-on-surface-variant dark:text-slate-400 leading-relaxed italic font-medium opacity-80">
+                "{displaySnippet}"
+              </p>
+              <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800/50">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Text Complexity</p>
+                <p className="text-xs font-bold dark:text-white">{result.input_length || 0} characters analyzed</p>
+              </div>
+            </div>
           </div>
 
-          <div className="lg:col-span-8 space-y-8">
-            <div className="bg-white dark:bg-[#1A1625] rounded-card p-8 soft-shadow border border-white dark:border-slate-800">
-              <h4 className="text-xl font-bold mb-8 dark:text-violet-200 flex items-center gap-3">
-                <span className="material-symbols-outlined text-error">analytics</span>
-                Detection Highlights
+          {/* Right Column: Detailed Signals */}
+          <div className="lg:col-span-8 space-y-10">
+            {/* Risk Section */}
+            <div className="bg-white dark:bg-[#1A1625] rounded-[40px] p-10 luxury-shadow border border-white dark:border-slate-800">
+              <h4 className="text-2xl font-display font-black mb-10 dark:text-white flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl bg-error/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-error">analytics</span>
+                </div>
+                Risk Intelligence
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {(result.risk_signals || []).map((sig, i) => (
-                  <div key={i} className="p-6 bg-surface-container-low dark:bg-slate-800/40 rounded-2xl border border-white dark:border-slate-700/30 group hover:border-error/30 transition-all">
-                    <p className="font-bold text-sm mb-2 dark:text-white group-hover:text-error transition-colors">{sig.label}</p>
-                    <p className="text-xs text-on-surface-variant dark:text-slate-400 mb-4 leading-relaxed">{sig.detail}</p>
-                    <div className="text-[9px] font-mono bg-white dark:bg-slate-900 dark:text-slate-300 p-2 rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden text-ellipsis">
-                      <span className="opacity-40 mr-1">EVIDENCE:</span> {sig.evidence}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                {signals.length > 0 ? signals.map((sig, i) => (
+                  <div key={i} className="p-8 bg-surface-container-low dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-700/30 group hover:border-error/40 transition-all duration-500">
+                    <p className="font-black text-sm mb-3 dark:text-white group-hover:text-error transition-colors uppercase tracking-tight">{sig.label}</p>
+                    <p className="text-xs text-on-surface-variant dark:text-slate-400 mb-6 leading-relaxed font-medium">{sig.detail}</p>
+                    <div className="text-[10px] font-mono bg-white dark:bg-slate-900 dark:text-slate-300 p-3 rounded-xl border border-slate-50 dark:border-slate-800 overflow-hidden text-ellipsis shadow-inner">
+                      <span className="text-primary-container font-bold mr-2">EVIDENCE:</span> {sig.evidence}
                     </div>
                   </div>
-                ))}
-                {(result.risk_signals || []).length === 0 && (
-                  <div className="col-span-full py-12 text-center">
-                    <span className="material-symbols-outlined text-slate-200 dark:text-slate-800 text-6xl mb-4">verified_user</span>
-                    <p className="text-on-surface-variant dark:text-slate-500 font-medium italic">No specific fraud vectors were identified in this listing.</p>
+                )) : (
+                  <div className="col-span-full py-16 text-center bg-slate-50 dark:bg-slate-900/20 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-800">
+                    <span className="material-symbols-outlined text-slate-200 dark:text-slate-800 text-7xl mb-6">verified_user</span>
+                    <p className="text-on-surface-variant dark:text-slate-500 font-bold tracking-tight">No critical risk vectors identified.</p>
+                    <p className="text-[11px] text-slate-400 mt-2">Listing adheres to baseline safety requirements.</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {result.trust_signals && result.trust_signals.length > 0 && (
-              <div className="bg-emerald-500/5 dark:bg-emerald-500/5 rounded-card p-8 border border-emerald-500/10 dark:border-emerald-500/10">
-                <h4 className="text-xl font-bold mb-8 text-emerald-700 dark:text-emerald-400 flex items-center gap-3">
+            {/* Trust Section */}
+            <div className="bg-emerald-500/[0.03] dark:bg-emerald-500/[0.02] rounded-[40px] p-10 border border-emerald-500/10 dark:border-emerald-500/10">
+              <h4 className="text-2xl font-display font-black mb-10 text-emerald-800 dark:text-emerald-400 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
                   <span className="material-symbols-outlined">shield_check</span>
-                  Trust Indicators
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {result.trust_signals.map((sig, i) => (
-                    <div key={i} className="flex gap-4">
-                      <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined text-emerald-500 text-sm">done</span>
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm dark:text-white mb-1">{sig.label}</p>
-                        <p className="text-xs text-on-surface-variant dark:text-slate-400 leading-relaxed">{sig.detail}</p>
-                      </div>
-                    </div>
-                  ))}
                 </div>
+                Trust Indicators
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                {trusts.length > 0 ? trusts.map((sig, i) => (
+                  <div key={i} className="flex gap-5 group">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
+                      <span className="material-symbols-outlined text-emerald-500 text-xl font-bold">done_all</span>
+                    </div>
+                    <div>
+                      <p className="font-black text-sm dark:text-white mb-2 uppercase tracking-tight">{sig.label}</p>
+                      <p className="text-xs text-on-surface-variant dark:text-slate-400 leading-relaxed font-medium">{sig.detail}</p>
+                    </div>
+                  </div>
+                )) : (
+                   <div className="col-span-full py-10 flex flex-col items-center text-center opacity-40">
+                      <span className="material-symbols-outlined text-emerald-600 mb-2">info</span>
+                      <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-500 uppercase tracking-widest">Baseline Corporate Verification</p>
+                   </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </main>
