@@ -673,13 +673,12 @@ def _calibrate_risk_score(model_fake_probability: float, heuristic_probability: 
         'Malicious Software Risk',
         'External Portal Redirect',
         'No Interview Selection',
-        'Low Bar High Reward',
-        'Suspicious Reward Language',
         'Mandatory Tool Purchase',
         'Paid Assessment Fee',
         'Urgency Pressure',
     }
     weak_signal_labels = {
+        'Low Bar High Reward',
         'Suspicious Reward Language',
         'Thin Job Detail',
         'Personal Contact Channel',
@@ -692,6 +691,9 @@ def _calibrate_risk_score(model_fake_probability: float, heuristic_probability: 
         risk_score = max(risk_score, 85.0)
     elif weak_count >= 3:
         risk_score = max(risk_score, 78.0)
+    elif weak_count >= 1 and 'Low Bar High Reward' in [s['label'] for s in signals]:
+        # User requested around 60 for "no experience/skills"
+        risk_score = max(risk_score, 62.0)
     elif weak_count >= 2:
         risk_score = max(risk_score, 58.0)
 
@@ -1261,6 +1263,25 @@ def api_clear_research_history(current_user: dict[str, Any] = Depends(_get_curre
         )
 
     return {'success': True, 'deleted_count': int(result.rowcount or 0)}
+
+
+@app.delete('/api/research-history/{research_id}')
+def api_delete_research_item(research_id: int, current_user: dict[str, Any] = Depends(_get_current_user)) -> dict[str, Any]:
+    user_id = int(current_user['id'])
+
+    with engine.begin() as connection:
+        result = connection.execute(
+            research_history_table.delete().where(
+                research_history_table.c.id == research_id,
+                research_history_table.c.user_id == user_id,
+            )
+        )
+
+    deleted = int(result.rowcount or 0)
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail='Research item not found')
+
+    return {'success': True, 'deleted_id': research_id}
 
 
 if __name__ == '__main__':

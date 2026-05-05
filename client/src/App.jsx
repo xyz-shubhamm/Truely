@@ -180,6 +180,20 @@ function AppShell() {
     finally { setLoading(false); }
   };
 
+  const handleClearAll = async () => {
+    const type = historyTab === 'jobs' ? 'job analysis' : 'research';
+    if (!window.confirm(`Permanently delete all ${type} history? This cannot be undone.`)) return;
+    setHistoryLoading(true);
+    try {
+      await authFetch(historyTab === 'jobs' ? '/api/history' : '/api/research-history', { method: 'DELETE' });
+      await fetchHistory();
+    } catch (err) {
+      console.error('Clear history failed:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
 
   const handleGoogleLogin = async () => {
     if (!supabase) {
@@ -575,12 +589,14 @@ function AppShell() {
         <div className="flex flex-col md:flex-row gap-xl items-start mb-xxl">
           <div className="w-32 h-32 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#1A1625] p-4 border border-slate-100 dark:border-slate-800 shrink-0 hover:scale-105 transition-transform duration-500">
             <img 
-              src={`https://logo.clearbit.com/${researchResult.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`} 
+              src={researchResult.logo_url || `https://logo.clearbit.com/${researchResult.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`} 
               alt={researchResult.company} 
               className="w-full h-full object-contain dark:brightness-90"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = wiki.thumbnail || 'https://www.google.com/s2/favicons?sz=128&domain=' + researchResult.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+                // Prefer favicon over Wikipedia thumbnail which often shows buildings
+                const domain = researchResult.logo_url ? researchResult.logo_url.split('/').pop() : (researchResult.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com');
+                e.target.src = `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
               }}
             />
           </div>
@@ -622,20 +638,20 @@ function AppShell() {
               </div>
             </section>
 
-            <div className="bg-surface-container-low p-xl rounded-card border border-white hover:shadow-lg transition-all">
-              <h4 className="font-bold text-sm mb-4">Risk Assessment</h4>
+            <div className="bg-surface-container-low dark:bg-slate-900/50 p-xl rounded-card border border-white dark:border-slate-800 hover:shadow-lg transition-all">
+              <h4 className="font-bold text-sm mb-4 dark:text-white">Risk Assessment</h4>
               <ul className="space-y-4">
                 <li className="flex gap-3">
                   <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
-                  <p className="text-xs text-on-surface-variant">Verified corporate history in public records.</p>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-400">Verified corporate history in public records.</p>
                 </li>
                 <li className="flex gap-3">
                   <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
-                  <p className="text-xs text-on-surface-variant">No known recruitment scams reported.</p>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-400">No known recruitment scams reported.</p>
                 </li>
                 <li className="flex gap-3">
                   <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
-                  <p className="text-xs text-on-surface-variant">Consistent headquarters data.</p>
+                  <p className="text-xs text-on-surface-variant dark:text-slate-400">Consistent headquarters data.</p>
                 </li>
               </ul>
             </div>
@@ -704,13 +720,13 @@ function AppShell() {
               (researchResult.reviews || [])
                 .filter(r => r.source === 'Reddit')
                 .map((rev, i) => (
-                  <a key={i} href={rev.url} target="_blank" rel="noopener noreferrer" className="block bg-white p-5 rounded-card soft-shadow border border-slate-100 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                  <a key={i} href={rev.url} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-[#1A1625] p-5 rounded-card soft-shadow border border-slate-100 dark:border-slate-800 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase bg-orange-100 text-orange-700">Reddit</span>
-                      <span className="text-[10px] font-bold text-slate-400">{rev.score} pts</span>
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase bg-orange-100 dark:bg-orange-400/10 text-orange-700 dark:text-orange-400">Reddit</span>
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{rev.score} pts</span>
                     </div>
-                    <h5 className="text-sm font-bold text-slate-800 mb-2 leading-snug">{rev.title}</h5>
-                    <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed">{rev.text}</p>
+                    <h5 className="text-sm font-bold text-slate-800 dark:text-white mb-2 leading-snug">{rev.title}</h5>
+                    <p className="text-xs text-slate-500 dark:text-violet-300/50 line-clamp-3 leading-relaxed">{rev.text}</p>
                   </a>
                 ))
             )}
@@ -727,9 +743,20 @@ function AppShell() {
           <h1 className="font-h1 text-3xl md:text-h1 text-on-surface dark:text-violet-200 mb-2 md:mb-xs">Your History</h1>
           <p className="font-body-md text-sm md:text-body-md text-on-surface-variant dark:text-violet-300/60">Manage your saved analyses and research.</p>
         </div>
-        <div className="bg-surface-container p-1 rounded-full flex gap-1 w-full md:w-auto">
-          <button onClick={() => setHistoryTab('jobs')} className={`flex-1 md:flex-none px-6 py-2 md:py-1.5 rounded-full text-xs font-semibold transition-all ${historyTab === 'jobs' ? 'bg-white shadow-sm text-primary-container' : 'text-on-surface-variant'}`}>Jobs</button>
-          <button onClick={() => setHistoryTab('research')} className={`flex-1 md:flex-none px-6 py-2 md:py-1.5 rounded-full text-xs font-semibold transition-all ${historyTab === 'research' ? 'bg-white shadow-sm text-primary-container' : 'text-on-surface-variant'}`}>Research</button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <div className="bg-surface-container dark:bg-slate-800 p-1 rounded-full flex gap-1">
+            <button onClick={() => setHistoryTab('jobs')} className={`flex-1 md:flex-none px-6 py-2 md:py-1.5 rounded-full text-xs font-semibold transition-all ${historyTab === 'jobs' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary-container dark:text-white' : 'text-on-surface-variant'}`}>Jobs</button>
+            <button onClick={() => setHistoryTab('research')} className={`flex-1 md:flex-none px-6 py-2 md:py-1.5 rounded-full text-xs font-semibold transition-all ${historyTab === 'research' ? 'bg-white dark:bg-slate-700 shadow-sm text-primary-container dark:text-white' : 'text-on-surface-variant'}`}>Research</button>
+          </div>
+          {(historyTab === 'jobs' ? jobHistory : researchHistory).length > 0 && (
+            <button 
+              onClick={handleClearAll}
+              className="flex items-center justify-center gap-2 px-6 py-3 md:py-2 rounded-full text-[10px] font-black uppercase tracking-widest text-error border border-error/20 hover:bg-error/5 transition-all"
+            >
+              <span className="material-symbols-outlined text-sm">delete_sweep</span>
+              Clear All
+            </button>
+          )}
         </div>
       </div>
 
@@ -758,7 +785,7 @@ function AppShell() {
                   )}
                   <p className="text-[10px] text-slate-400 hidden sm:block">{new Date(item.created_at).toLocaleDateString()}</p>
                   <button 
-                    onClick={async () => { if(window.confirm('Delete entry?')) { await authFetch(historyTab === 'jobs' ? `/api/history/${item.id}` : `/api/research-history`, { method: 'DELETE' }); fetchHistory(); }}}
+                    onClick={async () => { if(window.confirm('Delete entry?')) { await authFetch(historyTab === 'jobs' ? `/api/history/${item.id}` : `/api/research-history/${item.id}`, { method: 'DELETE' }); fetchHistory(); }}}
                     className="p-2 text-slate-300 hover:text-error transition-colors"
                   >
                     <span className="material-symbols-outlined text-[18px] md:text-[20px]">delete</span>
@@ -816,12 +843,6 @@ function AppShell() {
         </div>
       </section>
 
-      <section className="py-16 md:py-24 px-6 md:px-gutter max-w-4xl mx-auto text-center">
-        <h2 className="text-2xl md:text-3xl font-display font-extrabold text-on-surface dark:text-white mb-8">Ready to secure your future?</h2>
-        <button onClick={() => navigate('/verify')} className="w-full sm:w-auto bg-primary-container text-on-primary px-8 md:px-12 py-4 rounded-full font-black text-base md:text-lg shadow-2xl shadow-primary-container/40 hover:scale-105 active:scale-95 transition-all duration-500">
-          Start Your First Analysis
-        </button>
-      </section>
     </main>
   );
 
@@ -942,9 +963,6 @@ function AppShell() {
             </div>
             <div className="flex flex-wrap justify-center gap-6 md:gap-12 text-[10px] md:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
               <NavLink to="/about" className="hover:text-primary-container transition-colors">About</NavLink>
-              <a href="#" className="hover:text-primary-container transition-colors">Privacy</a>
-              <a href="#" className="hover:text-primary-container transition-colors">Terms</a>
-              <a href="#" className="hover:text-primary-container transition-colors">API</a>
             </div>
           </div>
         </footer>

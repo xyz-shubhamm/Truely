@@ -67,6 +67,8 @@ def fetch_wikipedia_info(company: str) -> dict[str, Any]:
     """Fetch basic company info from Wikipedia with smart disambiguation."""
     variations = [
         urllib.parse.quote(company.replace(" ", "_") + "_(company)"),
+        urllib.parse.quote(company.replace(" ", "_") + "_(corporation)"),
+        urllib.parse.quote(company.replace(" ", "_") + "_(software)"),
         urllib.parse.quote(company.replace(" ", "_") + "_Inc."),
         urllib.parse.quote(company.replace(" ", "_")),
     ]
@@ -79,9 +81,17 @@ def fetch_wikipedia_info(company: str) -> dict[str, Any]:
         extract = data.get("extract", "")
         title = data.get("title", "")
         
-        # If it's a disambiguation page or mentions fruit/rainforest primarily, skip to next variant
-        blacklist = ["may refer to:", "is a fruit", "rainforest", "genus of", "species of"]
-        if any(term in extract.lower() for term in blacklist) and "company" not in extract.lower():
+        # If it's a disambiguation page or mentions non-business entities primarily, skip to next variant
+        blacklist = ["may refer to:", "is a fruit", "rainforest", "genus of", "species of", "is a song", "is a film", "is a book"]
+        # Stricter company/tech validation
+        company_indicators = ["company", "corporation", "inc.", "limited", "software", "technology", "services", "startup", "manufacturer", "firm", "business"]
+        is_company_context = any(term in extract.lower() for term in company_indicators) or any(term in title.lower() for term in company_indicators)
+        
+        if any(term in extract.lower() for term in blacklist) and not is_company_context:
+            continue
+        
+        # If the extract is very short and doesn't mention "company", it might be a weak match
+        if len(extract) < 100 and not is_company_context:
             continue
 
         # Try to find a founding year
@@ -105,6 +115,49 @@ def fetch_wikipedia_info(company: str) -> dict[str, Any]:
         }
 
     return {"found": False, "title": company, "description": "", "url": "", "founding_year": None, "thumbnail": ""}
+
+
+def fetch_company_logo(company: str, verified_title: str | None = None) -> str:
+    """
+    Fetches a company logo URL using Clearbit's autocomplete API.
+    Uses verified_title (e.g. from Wikipedia) to improve accuracy.
+    """
+    search_term = verified_title or company
+    try:
+        # Step 1: Try Clearbit Autocomplete to get the official domain
+        url = f"https://autocomplete.clearbit.com/v1/companies/suggest?query={urllib.parse.quote(search_term)}"
+        resp = _safe_get(url, timeout=5)
+        if resp:
+            data = resp.json()
+            if data and len(data) > 0:
+                # Strategy: Find the best name match
+                best_match = data[0]
+                term_lower = search_term.lower()
+                
+                # 1. Exact match
+                exact_matches = [item for item in data if item.get("name", "").lower() == term_lower]
+                if exact_matches:
+                    best_match = exact_matches[0]
+                else:
+                    # 2. Starts with search_term
+                    starts_with = [item for item in data if item.get("name", "").lower().startswith(term_lower)]
+                    if starts_with:
+                        best_match = starts_with[0]
+                
+                domain = best_match.get("domain")
+                if domain:
+                    return f"https://logo.clearbit.com/{domain}"
+
+        # Step 2: Fallback to guessing the domain for very common names
+        clean_name = re.sub(r"[^a-z0-9]", "", company.lower())
+        if clean_name in ["google", "apple", "microsoft", "meta", "netflix", "amazon"]:
+            return f"https://logo.clearbit.com/{clean_name}.com"
+            
+        if clean_name:
+            return f"https://logo.clearbit.com/{clean_name}.com"
+    except Exception:
+        pass
+    return ""
 
 
 def fetch_stackoverflow_mentions(company: str) -> list[dict[str, Any]]:
@@ -506,6 +559,7 @@ def research_company(company: str, role: str = "", location: str = "") -> dict[s
     hn        = fetch_hn_discussions(company)
     so        = fetch_stackoverflow_mentions(company)
     ambition  = fetch_ambitionbox_data(company)
+    logo_url  = fetch_company_logo(company, wiki.get("title") if wiki.get("found") else None)
 
     # Build text corpus for sentiment
     corpus = []
@@ -577,6 +631,7 @@ def research_company(company: str, role: str = "", location: str = "") -> dict[s
         "red_flags":   flags,
         "reviews":     reviews,
         "ambitionbox": ambition,
+        "logo_url":    logo_url,
         "sources": {
             "reddit":   len(reddit),
             "leetcode": len(leetcode),
