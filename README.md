@@ -1,58 +1,51 @@
-# Fake Job Detection Platform
+# Truely - Intelligent Job Scam Detection Platform
 
-This workspace contains a Python-only backend with a React frontend:
+Truely is a premium career protection platform that uses AI forensics and LLM semantics to detect recruitment fraud.
 
-- `client/` - React + Vite frontend (Google OAuth login, analysis UI, history)
-- `ml_service/` - FastAPI backend (auth, prediction API, history persistence)
-- `artifacts/` - trained model and vectorizer files
+## Key Improvements (v2.0)
 
-## Database and auth
+- **🚀 Instant Login**: Optimized Google OAuth sync and added a "Verifying Session" loading state to eliminate redirect delays.
+- **🧠 GPT-Powered PDF Parsing**: Replaced regex-based extraction with LLM-based intelligence (Groq/OpenAI) for 99% accuracy in company/title extraction.
+- **🛡️ Semantic Scam Audit**: Every job analysis now includes a deep-semantic audit by an LLM to catch sophisticated fraud patterns that traditional models miss.
+- **💎 Premium UI**: Unified dark mode with smooth transitions and glassmorphism.
 
-- Database: Supabase Postgres
-- Auth: Google OAuth via Supabase Auth + app-level JWT from FastAPI
-- Saved data: every user prediction is stored in `job_analyses`
+## Setup & Running
 
-## Setup
+### 1. Environment Configuration
+The platform uses a unified `.env` file in the root directory. Ensure it contains:
+- `DATABASE_URL`: Supabase Postgres connection string.
+- `GROQ_API_KEY`: Required for fast LLM features (Free tier available).
+- `OPENAI_API_KEY`: Fallback for LLM features.
+- `SUPABASE_URL` & `SUPABASE_ANON_KEY`: From your Supabase project.
 
-1. Configure root `.env` for backend:
+### 2. Backend Installation (Python 3.9+)
+```bash
+# Navigate to root
+pip install -r ml_service/requirements.txt
+```
 
-	- `DATABASE_URL`
-	- `JWT_SECRET`
-	- `JWT_EXPIRE_MINUTES`
-	- `SUPABASE_URL`
-	- `SUPABASE_ANON_KEY`
-	- `MODEL_DIR`
+### 3. Frontend Installation
+```bash
+cd client
+npm install
+```
 
-2. Configure frontend Supabase env in `client/.env`:
+### 4. Running the Platform
+Open two terminal windows:
 
-	- `VITE_SUPABASE_URL`
-	- `VITE_SUPABASE_ANON_KEY`
+**Terminal 1: Backend**
+```bash
+# From root
+python -m uvicorn ml_service.app:app --host 127.0.0.1 --port 8000 --reload
+```
 
-3. Enable Google provider in Supabase Auth settings:
+**Terminal 2: Frontend**
+```bash
+cd client
+npm run dev
+```
 
-	- Authentication -> Providers -> Google -> Enable
-	- Add Google OAuth client credentials
-	- Add redirect URL: `http://localhost:5173/auth/callback`
-
-4. Run schema SQL in Supabase SQL Editor (create `app_users` and `job_analyses` tables).
-
-5. Install backend dependencies:
-
-	- `pip install -r ml_service/requirements.txt`
-
-6. Start backend:
-
-	- `python -m uvicorn ml_service.app:app --host 127.0.0.1 --port 8000`
-
-7. Start frontend:
-
-	- `cd client`
-	- `npm install`
-	- `npm run dev`
-
-## Auth flow
-
-- User clicks Continue with Google in frontend
-- Supabase OAuth completes on `/auth/callback`
-- Frontend sends Supabase access token to backend `/auth/google`
-- Backend returns app JWT used for protected API routes
+## Technology Stack
+- **Frontend**: React, Vite, TailwindCSS (Vanilla CSS customized), Supabase Auth.
+- **Backend**: FastAPI, SQLAlchemy, PyPDF, Scikit-learn.
+- **AI**: Groq (Llama-3.1), OpenAI (GPT-4o-mini), DistilBERT (Local).

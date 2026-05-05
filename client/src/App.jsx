@@ -71,6 +71,7 @@ function AppShell() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
+        setAuthLoading(true);
         try {
           const response = await fetch('/auth/google', {
             method: 'POST',
@@ -87,6 +88,9 @@ function AppShell() {
           }
         } catch (err) {
           console.error('Backend sync failed:', err);
+          setAuthError('Authentication failed. Please try again.');
+        } finally {
+          setAuthLoading(false);
         }
       } else if (event === 'SIGNED_OUT') {
         clearAuthState();
@@ -358,39 +362,11 @@ function AppShell() {
                 try {
                   const data = await authFetch('/api/extract-pdf', { method: 'POST', body: formData });
                   if (data.text) {
-                    const lines = data.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                    let extractedTitle = '';
-                    let extractedCompany = '';
-                    for (let line of lines.slice(0, 15)) {
-                      const compMatch = line.match(/(?:Company|Organization|About|Employer|Client)\s*[:|-]\s*([^.\n]+)/i);
-                      if (compMatch) {
-                        extractedCompany = compMatch[1].trim();
-                        break;
-                      }
-                    }
-                    if (!extractedTitle) {
-                      for (let i = 0; i < Math.min(lines.length, 5); i++) {
-                        if (lines[i].length < 60 && !lines[i].includes(':') && lines[i].length > 4) {
-                          extractedTitle = lines[i];
-                          break;
-                        }
-                      }
-                    }
-                    if (!extractedTitle || !extractedCompany) {
-                      const nameParts = file.name.replace(/\.pdf$/i, '').split(/[_\-\s]+/);
-                      if (nameParts.length >= 2) {
-                        if (!extractedCompany) extractedCompany = nameParts[0];
-                        if (!extractedTitle) extractedTitle = nameParts.slice(1).join(' ');
-                      } else if (nameParts.length === 1) {
-                        if (!extractedTitle) extractedTitle = nameParts[0];
-                        if (!extractedCompany) extractedCompany = 'Unknown';
-                      }
-                    }
                     setForm(f => ({ 
                       ...f, 
                       description: data.text,
-                      title: extractedTitle || f.title || 'Unknown Position',
-                      company_profile: extractedCompany || f.company_profile || 'Unknown'
+                      title: data.extracted_title || f.title || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' '),
+                      company_profile: data.extracted_company || f.company_profile || 'Unknown'
                     }));
                   }
                 } catch (err) { setError('Failed to extract PDF text'); }
@@ -411,43 +387,15 @@ function AppShell() {
                   formData.append('file', file);
                   setLoading(true);
                   try {
-                    const data = await authFetch('/api/extract-pdf', { method: 'POST', body: formData });
-                    if (data.text) {
-                      const lines = data.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                      let extractedTitle = '';
-                      let extractedCompany = '';
-                      for (let line of lines.slice(0, 15)) {
-                        const compMatch = line.match(/(?:Company|Organization|About|Employer|Client)\s*[:|-]\s*([^.\n]+)/i);
-                        if (compMatch) {
-                          extractedCompany = compMatch[1].trim();
-                          break;
-                        }
-                      }
-                      if (!extractedTitle) {
-                        for (let i = 0; i < Math.min(lines.length, 5); i++) {
-                          if (lines[i].length < 60 && !lines[i].includes(':') && lines[i].length > 4) {
-                            extractedTitle = lines[i];
-                            break;
-                          }
-                        }
-                      }
-                      if (!extractedTitle || !extractedCompany) {
-                        const nameParts = file.name.replace(/\.pdf$/i, '').split(/[_\-\s]+/);
-                        if (nameParts.length >= 2) {
-                          if (!extractedCompany) extractedCompany = nameParts[0];
-                          if (!extractedTitle) extractedTitle = nameParts.slice(1).join(' ');
-                        } else if (nameParts.length === 1) {
-                          if (!extractedTitle) extractedTitle = nameParts[0];
-                          if (!extractedCompany) extractedCompany = 'Unknown';
-                        }
-                      }
-                      setForm(f => ({ 
-                        ...f, 
-                        description: data.text,
-                        title: extractedTitle || f.title || 'Unknown Position',
-                        company_profile: extractedCompany || f.company_profile || 'Unknown'
-                      }));
-                    }
+                  const data = await authFetch('/api/extract-pdf', { method: 'POST', body: formData });
+                  if (data.text) {
+                    setForm(f => ({ 
+                      ...f, 
+                      description: data.text,
+                      title: data.extracted_title || f.title || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' '),
+                      company_profile: data.extracted_company || f.company_profile || 'Unknown'
+                    }));
+                  }
                   } catch (err) { setError('Failed to extract PDF text'); }
                   setLoading(false);
                 }
@@ -880,6 +828,12 @@ function AppShell() {
 
   return (
     <>
+      {authLoading && (
+        <div className="fixed inset-0 z-[1000] bg-white/80 dark:bg-[#0A0A0B]/90 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in">
+          <div className="w-16 h-16 border-4 border-primary-fixed/20 border-t-primary-container rounded-full animate-spin mb-6"></div>
+          <p className="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] animate-pulse">Verifying Session</p>
+        </div>
+      )}
       <header className="fixed top-0 left-0 right-0 z-[150] pointer-events-none">
         <div className="w-full flex justify-center p-4 md:p-6">
           <nav className="w-full max-w-[1300px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/50 dark:border-slate-800/50 rounded-full px-6 md:px-10 py-4 md:py-5 luxury-shadow flex items-center justify-between pointer-events-auto">

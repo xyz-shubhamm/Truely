@@ -10,9 +10,7 @@ import secrets
 import uuid
 from pathlib import Path
 from typing import Any
-from urllib import error as urlerror
-from urllib import request as urlrequest
-
+from company_researcher import research_company
 import joblib
 import pypdf
 from fastapi import Depends, FastAPI, HTTPException, File, UploadFile
@@ -24,9 +22,14 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 import jwt
 from jwt.exceptions import InvalidTokenError
-from company_researcher import research_company
+import requests
+import httpx
+from openai import OpenAI
+from groq import Groq
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
+# On Render, Root Directory is set to ml_service, so app.py is at the root of the service.
+# Locally, app.py is inside ml_service/.
+ROOT_DIR = Path(__file__).resolve().parent
 
 
 def _load_env_file(path: Path) -> None:
@@ -46,7 +49,7 @@ _load_env_file(ROOT_DIR / '.env')
 
 DATABASE_URL = os.getenv(
     'DATABASE_URL',
-    'postgresql://postgres:FakeJobDetection%4010@db.kqfrmxbhmrvoghwgntnd.supabase.co:5432/postgres?sslmode=require',
+    'postgresql://postgres.kqfrmxbhmrvoghwgntnd:FakeJobDetection%4010@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require',
 )
 if DATABASE_URL.startswith('postgresql://') and '+psycopg' not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg://', 1)
@@ -65,9 +68,18 @@ FRAUD_RISK_THRESHOLD = float(os.getenv('FRAUD_RISK_THRESHOLD', '35'))
 LOCAL_MODEL_PROBABILITY_THRESHOLD = float(os.getenv('LOCAL_MODEL_PROBABILITY_THRESHOLD', '0.52'))
 
 app = FastAPI(title='Truely ML API', version='2.0.0')
+# CORS Configuration
+frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+allowed_origins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://truely.vercel.app', # Common default pattern, but we use the env var mostly
+    frontend_url
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -76,9 +88,18 @@ app.add_middleware(
 
 def _create_engine_for_url(database_url: str) -> Engine:
     connect_args: dict[str, Any] = {}
-    if database_url.startswith('postgresql') and 'connect_timeout=' not in database_url:
-        connect_args['connect_timeout'] = 5
-    return create_engine(database_url, pool_pre_ping=True, future=True, connect_args=connect_args)
+    if database_url.startswith('postgresql'):
+        connect_args['connect_timeout'] = 10
+        connect_args['application_name'] = 'truely_backend'
+    return create_engine(
+        database_url, 
+        pool_pre_ping=True, 
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=300,
+        future=True, 
+        connect_args=connect_args
+    )
 
 
 def _ensure_job_analyses_schema_compatibility() -> None:
@@ -364,22 +385,21 @@ def _supabase_auth_get(path: str, access_token: str) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail='Supabase auth is not configured')
 
     endpoint = f'{SUPABASE_URL}/auth/v1{path}'
-    req = urlrequest.Request(
-        endpoint,
-        method='GET',
-        headers={
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': f'Bearer {access_token}',
-        },
-    )
-
     try:
-        with urlrequest.urlopen(req, timeout=20) as response:
-            raw = response.read().decode('utf-8').strip()
-            return json.loads(raw) if raw else {}
-    except urlerror.HTTPError:
-        raise HTTPException(status_code=401, detail='Invalid Google session token') from None
-    except urlerror.URLError:
+        resp = requests.get(
+            endpoint,
+            headers={
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': f'Bearer {access_token}',
+            },
+            timeout=10,
+        )
+        if resp.status_code == 401:
+            raise HTTPException(status_code=401, detail='Invalid Google session token')
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.RequestException as exc:
+        print(f"Supabase auth call failed: {exc}")
         raise HTTPException(status_code=502, detail='Unable to reach Supabase auth service') from None
 
 
@@ -658,15 +678,22 @@ def _extract_heuristics(posting: JobPosting, text: str) -> tuple[float, list[dic
     return min(score, 1.0), signals
 
 
-def _calibrate_risk_score(model_fake_probability: float, heuristic_probability: float, signals: list[dict[str, str]]) -> float:
+def _calibrate_risk_score(model_fake_probability: float, heuristic_probability: float, signals: list[dict[str, str]], llm_risk: float = 0.0) -> float:
     """
     Turn raw model output into a smoother 0-100 risk score.
-    Keeps obvious scams high, but avoids fake 0/100 extremes.
+    Now considers LLM-based semantic risk.
     """
-    combined_probability = (0.66 * model_fake_probability) + (0.34 * heuristic_probability)
+    # Blend model and heuristic (base)
+    base_probability = (0.60 * model_fake_probability) + (0.40 * heuristic_probability)
+    
+    # If LLM found significant risk, boost the probability
+    if llm_risk > 0.5:
+        combined_probability = max(base_probability, llm_risk)
+    else:
+        combined_probability = base_probability
 
     if signals:
-        combined_probability = max(combined_probability, min(0.95, heuristic_probability + 0.08))
+        combined_probability = max(combined_probability, min(0.95, combined_probability + 0.10))
 
     risk_score = 100.0 * combined_probability
 
@@ -682,6 +709,7 @@ def _calibrate_risk_score(model_fake_probability: float, heuristic_probability: 
         'Mandatory Tool Purchase',
         'Paid Assessment Fee',
         'Urgency Pressure',
+        'LLM Semantic Risk',
     }
     weak_signal_labels = {
         'Low Bar High Reward',
@@ -698,21 +726,17 @@ def _calibrate_risk_score(model_fake_probability: float, heuristic_probability: 
     elif weak_count >= 3:
         risk_score = max(risk_score, 78.0)
     elif weak_count >= 1 and 'Low Bar High Reward' in [s['label'] for s in signals]:
-        # User requested around 60 for "no experience/skills"
         risk_score = max(risk_score, 62.0)
     elif weak_count >= 2:
         risk_score = max(risk_score, 58.0)
 
     # Add deterministic jitter to avoid flat/static scores for real jobs.
     import hashlib
-    # Generate a unique offset between 1.0 and 10.0 based on the input signals and text
     input_hash = int(hashlib.md5(str(signals).encode()).hexdigest(), 16)
     
     if risk_score < 12.0:
-        # For very safe jobs, provide a varied score between 1.5 and 9.5
         risk_score = (input_hash % 800) / 100.0 + 1.5
     else:
-        # For other jobs, add a small +/- 3% variation
         jitter = (input_hash % 600) / 100.0 - 3.0
         risk_score = max(1.0, min(risk_score + jitter, 95.0))
     
@@ -1039,6 +1063,50 @@ def me(current_user: dict[str, Any] = Depends(_get_current_user)) -> dict[str, A
     return {'user': _serialize_user(current_user)}
 
 
+async def _audit_scam_with_llm(text: str) -> dict[str, Any]:
+    """Audit a job posting for scams using LLM semantics."""
+    api_key = os.getenv('GROQ_API_KEY') or os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        return {"risk_score": 0.0, "reason": ""}
+
+    prompt = f"""
+    Analyze this job posting for signs of recruitment fraud, scams, or malicious intent.
+    Consider patterns like:
+    - Unrealistic salary
+    - Asking for money/fees
+    - Suspicious contact methods
+    - High pressure / Urgency
+    - "No skills needed" high pay
+    
+    Return a JSON object with:
+    1. "risk_score": 0.0 to 1.0 (where 1.0 is definitely a scam)
+    2. "reason": A short explanation of your finding.
+    
+    Text:
+    {text[:3000]}
+    """
+
+    try:
+        if os.getenv('GROQ_API_KEY'):
+            client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+            chat_completion = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant'),
+                response_format={"type": "json_object"},
+            )
+            return json.loads(chat_completion.choices[0].message.content)
+        else:
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            response = client.chat.completions.create(
+                model=os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+            )
+            return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        print(f"LLM Audit error: {e}")
+        return {"risk_score": 0.0, "reason": ""}
+
 def _predict_from_posting(
     posting: JobPosting,
 ) -> dict[str, Any]:
@@ -1046,24 +1114,41 @@ def _predict_from_posting(
     if not text:
         raise HTTPException(status_code=400, detail='Empty job posting text')
 
-    # Check for job relevance
+    # 1. Job relevance check
     is_job_related = _is_job_posting(text)
     
-    # Keep the semantic structure but stay within a safe token-sized window.
-    text = text[:4000]
-
-    model_result = _call_local_classifier(posting, text)
-
-    confidence = float(model_result['confidence'])
+    # 2. Local model & Heuristics (base)
+    processed_text = text[:4000]
+    model_result = _call_local_classifier(posting, processed_text)
     model_fake_probability = float(model_result['model_fake_probability'])
+    heuristic_probability, heuristic_signals = _extract_heuristics(posting, processed_text)
 
-    heuristic_probability, heuristic_signals = _extract_heuristics(posting, text)
+    # 3. LLM Audit (The "GPT" part) - Synchronous wrapper for internal call
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        llm_audit = loop.run_until_complete(_audit_scam_with_llm(processed_text))
+    except Exception:
+        llm_audit = {"risk_score": 0.0, "reason": ""}
 
-    risk_score = _calibrate_risk_score(model_fake_probability, heuristic_probability, heuristic_signals)
+    if llm_audit.get('risk_score', 0) > 0.5:
+        heuristic_signals.append({
+            'label': 'LLM Semantic Risk',
+            'detail': llm_audit.get('reason', 'Advanced semantic analysis detected fraudulent patterns.'),
+            'evidence': 'AI Semantic Matching'
+        })
+
+    # 4. Calibration
+    risk_score = _calibrate_risk_score(
+        model_fake_probability, 
+        heuristic_probability, 
+        heuristic_signals, 
+        llm_risk=llm_audit.get('risk_score', 0)
+    )
+    
     fake_probability = risk_score / 100.0
     real_probability = 1.0 - fake_probability
     is_fake = risk_score >= FRAUD_RISK_THRESHOLD
-
     prediction = 'fake' if is_fake else 'real'
 
     return {
@@ -1072,20 +1157,62 @@ def _predict_from_posting(
         'threshold': round(FRAUD_RISK_THRESHOLD / 100.0, 4),
         'real_probability': round(real_probability, 6),
         'fake_probability': round(fake_probability, 6),
-        'confidence': round(confidence, 6),
+        'confidence': max(fake_probability, real_probability),
         'input_length': len(text),
-        'model_label': model_result['model_label'],
+        'model_label': f"{model_result['model_label']} + LLM_Audit",
         'model_fake_probability': round(model_fake_probability, 6),
         'heuristic_fake_probability': round(heuristic_probability, 6),
+        'llm_fake_probability': round(llm_audit.get('risk_score', 0), 6),
         'risk_score': risk_score,
         'rate': risk_score,
         'risk_signals': heuristic_signals,
     }
 
 
+async def _extract_details_with_llm(text: str) -> dict[str, str]:
+    """Use LLM to extract structured job details from raw text."""
+    api_key = os.getenv('GROQ_API_KEY') or os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        return {"title": "", "company": ""}
+
+    prompt = f"""
+    Extract the following information from this job posting text:
+    1. Job Title
+    2. Company Name
+    
+    Return ONLY a JSON object with keys "title" and "company". If not found, use empty strings.
+    
+    Text:
+    {text[:3000]}
+    """
+
+    try:
+        # Prefer Groq for speed if available
+        if os.getenv('GROQ_API_KEY'):
+            client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+            model = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant')
+            chat_completion = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=model,
+                response_format={"type": "json_object"},
+            )
+            return json.loads(chat_completion.choices[0].message.content)
+        else:
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            model = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+            )
+            return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        print(f"LLM Extraction error: {e}")
+        return {"title": "", "company": ""}
+
 @app.post('/api/extract-pdf')
 async def extract_pdf(file: UploadFile = File(...), current_user: dict[str, Any] = Depends(_get_current_user)) -> dict[str, Any]:
-    """Extract text from a PDF file for analysis."""
+    """Extract text and structured details from a PDF file using LLM."""
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail='Only PDF files are supported.')
     
@@ -1094,13 +1221,21 @@ async def extract_pdf(file: UploadFile = File(...), current_user: dict[str, Any]
         content = await file.read()
         reader = pypdf.PdfReader(io.BytesIO(content))
         text_content = ""
-        for page in reader.pages:
+        # Extract first 5 pages max to save tokens and time
+        for page in reader.pages[:5]:
             text_content += (page.extract_text() or "") + "\n"
         
         if not text_content.strip():
             return {"text": "", "warning": "No text could be extracted from this PDF."}
+        
+        # GPT-like intelligence: Extract structured details
+        details = await _extract_details_with_llm(text_content)
             
-        return {"text": text_content.strip()}
+        return {
+            "text": text_content.strip(),
+            "extracted_title": details.get("title", ""),
+            "extracted_company": details.get("company", "")
+        }
     except Exception as e:
         print(f"PDF Extraction error: {e}")
         raise HTTPException(status_code=500, detail='Failed to extract text from PDF.')
