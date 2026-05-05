@@ -41,6 +41,7 @@ function AppShell() {
 
   const [inputMode, setInputMode] = useState('text');
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '');
   const [user, setUser] = useState(() => {
@@ -197,21 +198,21 @@ function AppShell() {
 
   const renderLanding = () => (
     <div className="flex flex-col reveal">
-      <section className="flex flex-col items-center justify-center text-center px-gutter pt-40 pb-32 relative overflow-hidden min-h-[85vh]">
+      <section className="flex flex-col items-center justify-center text-center px-6 md:px-gutter pt-24 md:pt-40 pb-16 md:pb-32 relative overflow-hidden min-h-[70vh] md:min-h-[85vh]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,102,241,0.08),transparent_50%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(111,102,241,0.15),transparent_50%)] animate-pulse"></div>
         <div className="relative z-10 max-w-4xl mx-auto">
-          <span className="inline-block px-6 py-2 rounded-full bg-violet-500/10 dark:bg-violet-500/20 text-primary-container dark:text-violet-300 text-[11px] font-black uppercase tracking-[0.3em] mb-10 animate-fade-in-down border border-violet-500/20 dark:border-violet-500/30 shadow-[0_0_20px_rgba(167,139,250,0.2)]">INTELLIGENT VERIFICATION</span>
-          <h1 className="font-display text-5xl md:text-7xl font-black tracking-tightest leading-[1.0] text-on-surface dark:text-white mb-8 reveal">
-            Apply with <span className="text-primary-container dark:text-violet-400 drop-shadow-[0_0_15px_rgba(167,139,250,0.4)]">confidence.</span><br />
+          <span className="inline-block px-4 md:px-6 py-2 rounded-full bg-violet-500/10 dark:bg-violet-500/20 text-primary-container dark:text-violet-300 text-[10px] md:text-[11px] font-black uppercase tracking-[0.3em] mb-6 md:mb-10 animate-fade-in-down border border-violet-500/20 dark:border-violet-500/30 shadow-[0_0_20px_rgba(167,139,250,0.2)]">INTELLIGENT VERIFICATION</span>
+          <h1 className="font-display text-4xl md:text-7xl font-black tracking-tightest leading-[1.1] md:leading-[1.0] text-on-surface dark:text-white mb-6 md:mb-8 reveal">
+            Apply with <span className="text-primary-container dark:text-violet-400 drop-shadow-[0_0_15px_rgba(167,139,250,0.4)]">confidence.</span><br className="hidden md:block" />
             Verify with Truely.
           </h1>
-          <p className="font-body-lg text-lg md:text-xl text-on-surface-variant dark:text-slate-400 max-w-2xl mx-auto mb-16 leading-relaxed font-medium reveal" style={{animationDelay: '200ms'}}>
+          <p className="font-body-lg text-base md:text-xl text-on-surface-variant dark:text-slate-400 max-w-2xl mx-auto mb-10 md:mb-16 leading-relaxed font-medium reveal" style={{animationDelay: '200ms'}}>
             The global standard for job authenticity analysis and company reputation intelligence. 
             Protect your career from modern recruitment fraud with real-time AI forensics.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 reveal" style={{animationDelay: '400ms'}}>
-            <button onClick={() => navigate('/verify')} className="w-full sm:w-auto bg-primary-container text-on-primary px-12 py-5 rounded-[24px] font-black text-lg shadow-2xl shadow-primary-container/40 hover:scale-105 active:scale-95 transition-all duration-500">Get Started Free</button>
-            <button onClick={() => navigate('/research')} className="w-full sm:w-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-on-surface dark:text-white px-12 py-5 rounded-[24px] font-black text-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-500">Research Company</button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 reveal" style={{animationDelay: '400ms'}}>
+            <button onClick={() => navigate('/verify')} className="w-full sm:w-auto bg-primary-container text-on-primary px-8 md:px-12 py-4 md:py-5 rounded-[24px] font-black text-base md:text-lg shadow-2xl shadow-primary-container/40 hover:scale-105 active:scale-95 transition-all duration-500">Get Started Free</button>
+            <button onClick={() => navigate('/research')} className="w-full sm:w-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-on-surface dark:text-white px-8 md:px-12 py-4 md:py-5 rounded-[24px] font-black text-base md:text-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-500">Research Company</button>
           </div>
         </div>
         
@@ -297,16 +298,16 @@ function AppShell() {
   );
 
   const renderVerify = () => (
-    <main className="flex-grow flex flex-col items-center justify-center px-gutter py-xxl max-w-[1200px] mx-auto w-full reveal">
-      <div className="text-center mb-xl">
-        <h1 className="font-h1 text-h1 text-on-surface dark:text-violet-200 mb-md">Verify Job Posting</h1>
-        <p className="font-body-lg text-body-lg text-on-surface-variant dark:text-violet-300/70 max-w-2xl mx-auto">
+    <main className="flex-grow flex flex-col items-center justify-center px-6 md:px-gutter py-12 md:py-xxl max-w-[1200px] mx-auto w-full reveal">
+      <div className="text-center mb-8 md:mb-xl">
+        <h1 className="font-h1 text-3xl md:text-h1 text-on-surface dark:text-violet-200 mb-4 md:mb-md">Verify Job Posting</h1>
+        <p className="font-body-lg text-base md:text-body-lg text-on-surface-variant dark:text-violet-300/70 max-w-2xl mx-auto">
           Analyze listings for fraudulent patterns and recruitment scams.
         </p>
       </div>
 
-      <div className="bg-white dark:bg-[#1A1625] rounded-card soft-shadow w-full max-w-3xl p-lg md:p-xl border border-white dark:border-slate-800">
-        <form onSubmit={handlePredict} className="space-y-md">
+      <div className="bg-white dark:bg-[#1A1625] rounded-card soft-shadow w-full max-w-3xl p-6 md:p-xl border border-white dark:border-slate-800">
+        <form onSubmit={handlePredict} className="space-y-4 md:space-y-md">
           <input 
             placeholder="Job Title"
             required
@@ -321,7 +322,7 @@ function AppShell() {
             className="w-full h-12 px-md bg-surface-container-low dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary-container outline-none dark:text-white"
           />
           <div 
-            className={`relative group border-2 border-dashed rounded-2xl p-8 transition-all flex flex-col items-center justify-center bg-surface-container-low/50 cursor-pointer ${form.description ? 'border-primary-container/30' : 'border-slate-200 hover:border-primary-container'}`}
+            className={`relative group border-2 border-dashed rounded-2xl p-6 md:p-8 transition-all flex flex-col items-center justify-center bg-surface-container-low/50 cursor-pointer ${form.description ? 'border-primary-container/30' : 'border-slate-200 hover:border-primary-container'}`}
             onDragOver={(e) => e.preventDefault()}
             onDrop={async (e) => {
               e.preventDefault();
@@ -331,16 +332,11 @@ function AppShell() {
                 formData.append('file', file);
                 setLoading(true);
                 try {
-                  console.log('Sending PDF to backend...');
                   const data = await authFetch('/api/extract-pdf', { method: 'POST', body: formData });
-                  console.log('PDF Result:', data);
-                  
                   if (data.text) {
                     const lines = data.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                     let extractedTitle = '';
                     let extractedCompany = '';
-
-                    // Priority 1: Inside text
                     for (let line of lines.slice(0, 15)) {
                       const compMatch = line.match(/(?:Company|Organization|About|Employer|Client)\s*[:|-]\s*([^.\n]+)/i);
                       if (compMatch) {
@@ -348,7 +344,6 @@ function AppShell() {
                         break;
                       }
                     }
-
                     if (!extractedTitle) {
                       for (let i = 0; i < Math.min(lines.length, 5); i++) {
                         if (lines[i].length < 60 && !lines[i].includes(':') && lines[i].length > 4) {
@@ -357,8 +352,6 @@ function AppShell() {
                         }
                       }
                     }
-
-                    // Priority 2: Filename fallback
                     if (!extractedTitle || !extractedCompany) {
                       const nameParts = file.name.replace(/\.pdf$/i, '').split(/[_\-\s]+/);
                       if (nameParts.length >= 2) {
@@ -369,8 +362,6 @@ function AppShell() {
                         if (!extractedCompany) extractedCompany = 'Unknown';
                       }
                     }
-
-                    // Fallback: Unknown
                     setForm(f => ({ 
                       ...f, 
                       description: data.text,
@@ -378,10 +369,7 @@ function AppShell() {
                       company_profile: extractedCompany || f.company_profile || 'Unknown'
                     }));
                   }
-                } catch (err) { 
-                  console.error('PDF Error:', err);
-                  setError('Failed to extract PDF text'); 
-                }
+                } catch (err) { setError('Failed to extract PDF text'); }
                 setLoading(false);
               }
             }}
@@ -399,16 +387,11 @@ function AppShell() {
                   formData.append('file', file);
                   setLoading(true);
                   try {
-                    console.log('Sending PDF to backend (input)...');
                     const data = await authFetch('/api/extract-pdf', { method: 'POST', body: formData });
-                    console.log('PDF Result (input):', data);
-                    
                     if (data.text) {
                       const lines = data.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                       let extractedTitle = '';
                       let extractedCompany = '';
-
-                      // Priority 1: Inside text
                       for (let line of lines.slice(0, 15)) {
                         const compMatch = line.match(/(?:Company|Organization|About|Employer|Client)\s*[:|-]\s*([^.\n]+)/i);
                         if (compMatch) {
@@ -416,7 +399,6 @@ function AppShell() {
                           break;
                         }
                       }
-
                       if (!extractedTitle) {
                         for (let i = 0; i < Math.min(lines.length, 5); i++) {
                           if (lines[i].length < 60 && !lines[i].includes(':') && lines[i].length > 4) {
@@ -425,8 +407,6 @@ function AppShell() {
                           }
                         }
                       }
-
-                      // Priority 2: Filename fallback
                       if (!extractedTitle || !extractedCompany) {
                         const nameParts = file.name.replace(/\.pdf$/i, '').split(/[_\-\s]+/);
                         if (nameParts.length >= 2) {
@@ -437,8 +417,6 @@ function AppShell() {
                           if (!extractedCompany) extractedCompany = 'Unknown';
                         }
                       }
-
-                      // Fallback: Unknown
                       setForm(f => ({ 
                         ...f, 
                         description: data.text,
@@ -446,46 +424,36 @@ function AppShell() {
                         company_profile: extractedCompany || f.company_profile || 'Unknown'
                       }));
                     }
-                  } catch (err) { 
-                    console.error('PDF Error (input):', err);
-                    setError('Failed to extract PDF text'); 
-                  }
-                    setLoading(false);
+                  } catch (err) { setError('Failed to extract PDF text'); }
+                  setLoading(false);
                 }
               }}
             />
-            {form.description ? (
-              <div className="w-full text-center space-y-4">
-                <div className="flex flex-col items-center">
-                  <span className="material-symbols-outlined text-emerald-500 text-5xl mb-2">check_circle</span>
-                  <p className="text-sm font-bold text-slate-700 uppercase tracking-widest">Description Captured</p>
-                </div>
-                <div className="bg-white/50 rounded-xl p-4 text-left max-h-[150px] overflow-y-auto border border-slate-100">
-                  <p className="text-[11px] text-slate-500 font-mono leading-relaxed whitespace-pre-wrap">{form.description}</p>
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); setForm(f => ({...f, description: ''})); }} className="text-[10px] text-error uppercase font-black hover:underline tracking-widest">Clear & Try Again</button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <span className="material-symbols-outlined text-slate-400 text-4xl mb-2 group-hover:text-primary-container transition-colors">cloud_upload</span>
-                <p className="text-sm font-bold text-slate-700">Drop PDF or Paste Text</p>
-                <p className="text-xs text-slate-400 mt-1">We'll automatically extract the job details</p>
-              </div>
-            )}
+            <div className="text-center">
+              <span className="material-symbols-outlined text-slate-400 text-3xl md:text-4xl mb-2 group-hover:text-primary-container transition-colors">cloud_upload</span>
+              <p className="text-sm font-bold text-slate-700">Extract from PDF</p>
+              <p className="text-[10px] md:text-xs text-slate-400 mt-1">Drop file here to auto-fill the fields below</p>
+            </div>
           </div>
 
-          {!form.description && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Job Description</label>
+              {form.description && (
+                <button type="button" onClick={() => setForm(f => ({...f, description: ''}))} className="text-[10px] text-error font-black uppercase tracking-widest hover:underline">Clear Text</button>
+              )}
+            </div>
             <textarea
-              rows={6}
-              placeholder="Or paste the job description manually here..."
+              rows={8}
+              placeholder="Paste the job description here or use the PDF uploader above..."
               required
               value={form.description}
               onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full p-md bg-surface-container-low dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary-container outline-none resize-none reveal dark:text-white"
+              className="w-full p-md bg-surface-container-low dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary-container outline-none resize-none dark:text-white transition-all font-mono text-sm md:text-base"
             />
-          )}
+          </div>
           {error && <div className="text-error text-sm text-center">{error}</div>}
-          <div className="flex justify-center mt-xl">
+          <div className="flex justify-center mt-6 md:mt-xl">
             <button 
               type="submit"
               disabled={loading}
@@ -500,17 +468,17 @@ function AppShell() {
   );
 
   const renderResearch = () => (
-    <main className="flex-grow flex flex-col items-center justify-center px-gutter py-xxl max-w-[1200px] mx-auto w-full reveal">
-      <div className="text-center mb-xl">
-        <h1 className="font-h1 text-h1 text-on-surface dark:text-violet-200 mb-md">Company Research</h1>
-        <p className="font-body-lg text-body-lg text-on-surface-variant dark:text-violet-300/70 max-w-2xl mx-auto">
+    <main className="flex-grow flex flex-col items-center justify-center px-6 md:px-gutter py-12 md:py-xxl max-w-[1200px] mx-auto w-full reveal">
+      <div className="text-center mb-8 md:mb-xl">
+        <h1 className="font-h1 text-3xl md:text-h1 text-on-surface dark:text-violet-200 mb-4 md:mb-md">Company Research</h1>
+        <p className="font-body-lg text-base md:text-body-lg text-on-surface-variant dark:text-violet-300/70 max-w-2xl mx-auto">
           Uncover the reputation and history of any hiring company across public records.
         </p>
       </div>
 
-      <div className="bg-white dark:bg-[#1A1625] rounded-card soft-shadow w-full max-w-3xl p-lg md:p-xl border border-white dark:border-slate-800">
-        <form onSubmit={handleResearch} className="space-y-md">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+      <div className="bg-white dark:bg-[#1A1625] rounded-card soft-shadow w-full max-w-3xl p-6 md:p-xl border border-white dark:border-slate-800">
+        <form onSubmit={handleResearch} className="space-y-4 md:space-y-md">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-md">
             <input 
               placeholder="Company Name"
               required
@@ -526,7 +494,7 @@ function AppShell() {
             />
           </div>
           {error && <div className="text-error text-sm text-center">{error}</div>}
-          <div className="flex justify-center mt-xl">
+          <div className="flex justify-center mt-6 md:mt-xl">
             <button 
               type="submit"
               disabled={loading}
@@ -548,8 +516,8 @@ function AppShell() {
           <div className="flex items-center gap-2 mb-2">
             <span className="text-label-caps font-label-caps text-primary-container px-2 py-1 bg-primary-fixed rounded uppercase">ANALYSIS COMPLETE</span>
           </div>
-          <h1 className="font-h1 text-h1 text-on-surface mb-2">Analysis Report</h1>
-          <p className="text-on-surface-variant">Verdict: {result.prediction.toUpperCase()}</p>
+          <h1 className="font-h1 text-h1 text-on-surface dark:text-white mb-2">Analysis Report</h1>
+          <p className="text-on-surface-variant dark:text-slate-400">Verdict: {result.prediction.toUpperCase()}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter">
@@ -557,7 +525,7 @@ function AppShell() {
             <h3 className="font-h2 text-h2 mb-8 text-on-surface dark:text-violet-200">Risk Score</h3>
             <div className="relative w-48 h-48 mb-8">
               <svg className="w-full h-full transform -rotate-90">
-                <circle className="text-surface-container-high" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="4"></circle>
+                <circle className="text-surface-container-high dark:text-slate-800" cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" strokeWidth="4"></circle>
                 <circle 
                   className={result.risk_score > 50 ? "text-error" : "text-emerald-500"} 
                   cx="96" cy="96" fill="transparent" r="88" stroke="currentColor" 
@@ -568,11 +536,11 @@ function AppShell() {
                 ></circle>
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-extrabold text-on-surface tracking-tight">{Math.round(result.risk_score)}</span>
-                <span className="text-label-caps font-label-caps text-outline uppercase">Out of 100</span>
+                <span className="text-4xl font-extrabold text-on-surface dark:text-white tracking-tight">{Math.round(result.risk_score)}</span>
+                <span className="text-label-caps font-label-caps text-outline dark:text-slate-500 uppercase">Out of 100</span>
               </div>
             </div>
-            <p className="text-on-surface-variant text-sm">Based on model and heuristic analysis.</p>
+            <p className="text-on-surface-variant dark:text-slate-500 text-sm">Based on model and heuristic analysis.</p>
           </div>
 
           <div className="md:col-span-8 space-y-gutter">
@@ -580,13 +548,13 @@ function AppShell() {
               <h4 className="text-h2 mb-6 dark:text-violet-200">Detection Highlights</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {(result.risk_signals || []).map((sig, i) => (
-                  <div key={i} className="p-4 bg-surface-container-low rounded-xl border border-white">
-                    <p className="font-bold text-sm mb-1">{sig.label}</p>
-                    <p className="text-xs text-on-surface-variant mb-2">{sig.detail}</p>
-                    <p className="text-[10px] font-mono bg-white p-1 rounded">"{sig.evidence}"</p>
+                  <div key={i} className="p-4 bg-surface-container-low dark:bg-slate-800/50 rounded-xl border border-white dark:border-slate-700/50">
+                    <p className="font-bold text-sm mb-1 dark:text-white">{sig.label}</p>
+                    <p className="text-xs text-on-surface-variant dark:text-slate-400 mb-2">{sig.detail}</p>
+                    <p className="text-[10px] font-mono bg-white dark:bg-slate-900 dark:text-slate-300 p-1 rounded">"{sig.evidence}"</p>
                   </div>
                 ))}
-                {(result.risk_signals || []).length === 0 && <p className="text-on-surface-variant opacity-50 italic">No specific red flags matched.</p>}
+                {(result.risk_signals || []).length === 0 && <p className="text-on-surface-variant dark:text-slate-500 opacity-50 italic">No specific red flags matched.</p>}
               </div>
             </div>
           </div>
@@ -753,47 +721,47 @@ function AppShell() {
   };
 
   const renderHistory = () => (
-    <main className="max-w-[1200px] mx-auto px-8 py-xxl min-h-screen reveal">
-      <div className="mb-xl flex flex-col md:flex-row justify-between items-end gap-4">
+    <main className="max-w-[1200px] mx-auto px-6 md:px-8 py-12 md:py-xxl min-h-screen reveal">
+      <div className="mb-8 md:mb-xl flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:gap-4">
         <div>
-          <h1 className="font-h1 text-h1 text-on-surface dark:text-violet-200 mb-xs">Your History</h1>
-          <p className="font-body-md text-on-surface-variant dark:text-violet-300/60">Manage your saved analyses and research.</p>
+          <h1 className="font-h1 text-3xl md:text-h1 text-on-surface dark:text-violet-200 mb-2 md:mb-xs">Your History</h1>
+          <p className="font-body-md text-sm md:text-body-md text-on-surface-variant dark:text-violet-300/60">Manage your saved analyses and research.</p>
         </div>
-        <div className="bg-surface-container p-1 rounded-full flex gap-1">
-          <button onClick={() => setHistoryTab('jobs')} className={`px-6 py-1.5 rounded-full text-xs font-semibold transition-all ${historyTab === 'jobs' ? 'bg-white shadow-sm text-primary-container' : 'text-on-surface-variant'}`}>Jobs</button>
-          <button onClick={() => setHistoryTab('research')} className={`px-6 py-1.5 rounded-full text-xs font-semibold transition-all ${historyTab === 'research' ? 'bg-white shadow-sm text-primary-container' : 'text-on-surface-variant'}`}>Research</button>
+        <div className="bg-surface-container p-1 rounded-full flex gap-1 w-full md:w-auto">
+          <button onClick={() => setHistoryTab('jobs')} className={`flex-1 md:flex-none px-6 py-2 md:py-1.5 rounded-full text-xs font-semibold transition-all ${historyTab === 'jobs' ? 'bg-white shadow-sm text-primary-container' : 'text-on-surface-variant'}`}>Jobs</button>
+          <button onClick={() => setHistoryTab('research')} className={`flex-1 md:flex-none px-6 py-2 md:py-1.5 rounded-full text-xs font-semibold transition-all ${historyTab === 'research' ? 'bg-white shadow-sm text-primary-container' : 'text-on-surface-variant'}`}>Research</button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#1A1625] rounded-macos soft-shadow border border-slate-100 dark:border-slate-800 overflow-hidden">
+      <div className="bg-white dark:bg-[#1A1625] rounded-[24px] md:rounded-macos soft-shadow border border-slate-100 dark:border-slate-800 overflow-hidden">
         <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-          {historyLoading ? <div className="p-20 text-center text-slate-400 dark:text-violet-300/40">Loading...</div> : 
+          {historyLoading ? <div className="p-12 md:p-20 text-center text-slate-400 dark:text-violet-300/40">Loading...</div> : 
             (historyTab === 'jobs' ? jobHistory : researchHistory).length === 0 ? 
-            <div className="p-20 text-center text-slate-400 dark:text-violet-300/40 italic">No records found.</div> : 
+            <div className="p-12 md:p-20 text-center text-slate-400 dark:text-violet-300/40 italic">No records found.</div> : 
             (historyTab === 'jobs' ? jobHistory : researchHistory).map((item, i) => (
-              <li key={item.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-center justify-between reveal" style={{animationDelay: `${i * 50}ms`}}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${historyTab === 'jobs' ? (item.is_fake ? 'bg-error-container text-error' : 'bg-emerald-100 text-emerald-600') : 'bg-primary-fixed text-primary'}`}>
-                    <span className="material-symbols-outlined">{historyTab === 'jobs' ? (item.is_fake ? 'warning' : 'verified') : 'corporate_fare'}</span>
+              <li key={item.id} className="p-4 md:p-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-center justify-between reveal" style={{animationDelay: `${i * 50}ms`}}>
+                <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${historyTab === 'jobs' ? (item.is_fake ? 'bg-error-container text-error' : 'bg-emerald-100 text-emerald-600') : 'bg-primary-fixed text-primary'}`}>
+                    <span className="material-symbols-outlined text-xl">{historyTab === 'jobs' ? (item.is_fake ? 'warning' : 'verified') : 'corporate_fare'}</span>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-on-surface dark:text-white">{historyTab === 'jobs' ? (item.input_payload?.title || 'Job Check') : item.company}</h3>
-                    <p className="text-xs text-on-surface-variant dark:text-violet-300/50">{historyTab === 'jobs' ? (item.input_payload?.company_profile || 'Unknown Company') : `${item.role || 'General Research'} • ${item.location || 'Remote'}`}</p>
+                  <div className="overflow-hidden">
+                    <h3 className="font-bold text-on-surface dark:text-white truncate">{historyTab === 'jobs' ? (item.input_payload?.title || 'Job Check') : item.company}</h3>
+                    <p className="text-[10px] md:text-xs text-on-surface-variant dark:text-violet-300/50 truncate">{historyTab === 'jobs' ? (item.input_payload?.company_profile || 'Unknown Company') : `${item.role || 'General Research'} • ${item.location || 'Remote'}`}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4 md:gap-6 shrink-0">
                   {historyTab === 'jobs' && (
-                    <div className="text-right">
-                      <p className={`text-xs font-bold ${item.is_fake ? 'text-error' : 'text-emerald-600'}`}>{item.is_fake ? 'SCAM' : 'SECURE'}</p>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-widest">{Math.round(item.risk_score)}% Risk</p>
+                    <div className="text-right hidden xs:block">
+                      <p className={`text-[10px] md:text-xs font-bold ${item.is_fake ? 'text-error' : 'text-emerald-600'}`}>{item.is_fake ? 'SCAM' : 'SECURE'}</p>
+                      <p className="text-[9px] md:text-[10px] text-slate-400 uppercase tracking-widest">{Math.round(item.risk_score)}% Risk</p>
                     </div>
                   )}
-                  <p className="text-xs text-slate-400 hidden sm:block">{new Date(item.created_at).toLocaleDateString()}</p>
+                  <p className="text-[10px] text-slate-400 hidden sm:block">{new Date(item.created_at).toLocaleDateString()}</p>
                   <button 
                     onClick={async () => { if(window.confirm('Delete entry?')) { await authFetch(historyTab === 'jobs' ? `/api/history/${item.id}` : `/api/research-history`, { method: 'DELETE' }); fetchHistory(); }}}
-                    className="text-slate-300 hover:text-error transition-colors"
+                    className="p-2 text-slate-300 hover:text-error transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    <span className="material-symbols-outlined text-[18px] md:text-[20px]">delete</span>
                   </button>
                 </div>
               </li>
@@ -801,6 +769,59 @@ function AppShell() {
           }
         </ul>
       </div>
+    </main>
+  );
+
+  const renderAbout = () => (
+    <main className="flex-grow reveal">
+      <section className="px-6 md:px-gutter pt-24 md:pt-32 pb-16 md:pb-24 text-center max-w-4xl mx-auto">
+        <span className="inline-block px-4 py-1.5 rounded-full bg-violet-500/10 dark:bg-violet-500/20 text-primary-container dark:text-violet-300 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-6 md:mb-8 border border-violet-500/20">OUR MISSION</span>
+        <h1 className="font-display text-3xl md:text-6xl font-black tracking-tightest leading-tight text-on-surface dark:text-white mb-6 md:mb-8">
+          Protecting your <span className="text-primary-container dark:text-violet-400">career journey</span> in an era of digital fraud.
+        </h1>
+        <p className="text-base md:text-xl text-on-surface-variant dark:text-slate-400 leading-relaxed font-medium mb-10 md:mb-12">
+          Truely was born from a simple observation: as recruitment moves entirely online, the vectors for sophisticated scams have multiplied. Our mission is to provide every job seeker with the forensic tools needed to verify opportunities with confidence.
+        </p>
+      </section>
+
+      <section className="bg-white dark:bg-[#111113] py-16 md:py-24 px-6 md:px-gutter border-y border-slate-100 dark:border-slate-800">
+        <div className="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+          <div className="p-6 md:p-8 rounded-[32px] bg-surface-container-low dark:bg-slate-900 border border-white dark:border-slate-800 soft-shadow hover:-translate-y-2 transition-all duration-500">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-error-container/10 flex items-center justify-center mb-6">
+              <span className="material-symbols-outlined text-error text-2xl md:text-3xl">warning</span>
+            </div>
+            <h3 className="text-lg md:text-xl font-bold text-on-surface dark:text-white mb-4">The Problem</h3>
+            <p className="text-sm text-on-surface-variant dark:text-slate-400 leading-relaxed">
+              Recruitment fraud is evolving. Sophisticated scams now bypass traditional filters, leading to data theft and financial loss for thousands of job seekers daily.
+            </p>
+          </div>
+          <div className="p-6 md:p-8 rounded-[32px] bg-surface-container-low dark:bg-slate-900 border border-white dark:border-slate-800 soft-shadow hover:-translate-y-2 transition-all duration-500">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-primary-container/10 flex items-center justify-center mb-6">
+              <span className="material-symbols-outlined text-primary-container text-2xl md:text-3xl">auto_fix_high</span>
+            </div>
+            <h3 className="text-lg md:text-xl font-bold text-on-surface dark:text-white mb-4">Our Solution</h3>
+            <p className="text-sm text-on-surface-variant dark:text-slate-400 leading-relaxed">
+              We deploy advanced AI forensics and real-time domain verification to unmask fraudulent patterns, providing you with a clear, actionable risk assessment.
+            </p>
+          </div>
+          <div className="p-6 md:p-8 rounded-[32px] bg-surface-container-low dark:bg-slate-900 border border-white dark:border-slate-800 soft-shadow hover:-translate-y-2 transition-all duration-500">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-6">
+              <span className="material-symbols-outlined text-emerald-500 text-2xl md:text-3xl">verified</span>
+            </div>
+            <h3 className="text-lg md:text-xl font-bold text-on-surface dark:text-white mb-4">The Impact</h3>
+            <p className="text-sm text-on-surface-variant dark:text-slate-400 leading-relaxed">
+              By turning uncertainty into intelligence, we empower you to apply with confidence, ensuring your career journey remains secure and authentic.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 md:py-24 px-6 md:px-gutter max-w-4xl mx-auto text-center">
+        <h2 className="text-2xl md:text-3xl font-display font-extrabold text-on-surface dark:text-white mb-8">Ready to secure your future?</h2>
+        <button onClick={() => navigate('/verify')} className="w-full sm:w-auto bg-primary-container text-on-primary px-8 md:px-12 py-4 rounded-full font-black text-base md:text-lg shadow-2xl shadow-primary-container/40 hover:scale-105 active:scale-95 transition-all duration-500">
+          Start Your First Analysis
+        </button>
+      </section>
     </main>
   );
 
@@ -827,69 +848,108 @@ function AppShell() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F9F9F7] dark:bg-[#0A0A0B] transition-colors duration-700">
-      <div className="absolute top-8 left-1/2 -translate-x-1/2 w-[98%] max-w-[1300px] z-[100] transition-all duration-500">
-        <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/50 dark:border-slate-800/50 rounded-[32px] px-12 py-6 luxury-shadow flex items-center justify-between">
-          <div onClick={() => navigate('/')} className="text-3xl font-bold tracking-tightest text-primary-container font-display cursor-pointer flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary-container text-3xl">shield_with_heart</span>
-            Truely
-          </div>
-          
-          <div className="hidden md:flex items-center space-x-10 font-display text-sm font-medium tracking-tight">
-            <NavLink to="/" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive && location.pathname === '/' ? 'text-primary-container' : 'text-slate-500'}`}>Home</NavLink>
-            <NavLink to="/verify" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>Verify</NavLink>
-            <NavLink to="/research" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>Research</NavLink>
-            <NavLink to="/history" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>History</NavLink>
-          </div>
+    <>
+      <header className="fixed top-0 left-0 right-0 z-[150] pointer-events-none">
+        <div className="w-full flex justify-center p-4 md:p-6">
+          <nav className="w-full max-w-[1300px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/50 dark:border-slate-800/50 rounded-full px-6 md:px-10 py-4 md:py-5 luxury-shadow flex items-center justify-between pointer-events-auto">
+            <div onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }} className="text-2xl md:text-3xl font-bold tracking-tightest text-primary-container font-display cursor-pointer flex items-center gap-2 md:gap-3">
+              <span className="material-symbols-outlined text-primary-container text-2xl md:text-3xl">shield_with_heart</span>
+              Truely
+            </div>
+            
+            <div className="hidden md:flex items-center space-x-10 font-display text-lg font-medium tracking-tight">
+              <NavLink to="/" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive && location.pathname === '/' ? 'text-primary-container' : 'text-slate-500'}`}>Home</NavLink>
+              <NavLink to="/verify" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>Verify</NavLink>
+              <NavLink to="/research" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>Research</NavLink>
+              <NavLink to="/history" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>History</NavLink>
+              <NavLink to="/about" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>About</NavLink>
+            </div>
 
-          <div className="flex items-center gap-6">
-            <button onClick={toggleDarkMode} className="p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-2xl">dark_mode</span>
-            </button>
-            {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col items-end hidden lg:flex">
-                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{user?.name}</span>
-                  <button onClick={clearAuthState} className="text-[11px] font-bold text-primary-container hover:underline">Sign Out</button>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary-container">
-                  {user?.name?.[0] || 'U'}
-                </div>
+            <div className="flex items-center gap-3 md:gap-6">
+              <button onClick={toggleDarkMode} className="p-2 md:p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl md:text-2xl">dark_mode</span>
+              </button>
+              
+              <div className="md:hidden">
+                <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-2xl bg-primary-container/10 text-primary-container">
+                  <span className="material-symbols-outlined">{isMobileMenuOpen ? 'close' : 'menu'}</span>
+                </button>
               </div>
-            ) : (
-              <button onClick={() => navigate('/login')} className="bg-primary-container text-on-primary px-8 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-primary-container/20 hover:scale-105 transition-all">Sign In</button>
-            )}
-          </div>
-        </nav>
-      </div>
 
-      <div className="pt-28 flex-grow">
-        <Routes>
-          <Route path="/" element={renderLanding()} />
-          <Route path="/verify" element={renderVerify()} />
-          <Route path="/research" element={renderResearch()} />
-          <Route path="/report" element={result ? renderReport() : <Navigate to="/verify" />} />
-          <Route path="/research-report" element={researchResult ? renderResearchReport() : <Navigate to="/research" />} />
-          <Route path="/history" element={isAuthenticated ? renderHistory() : <Navigate to="/login" />} />
-          <Route path="/login" element={renderLogin()} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </div>
+              {isAuthenticated ? (
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-end hidden lg:flex">
+                    <span className="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{user?.name}</span>
+                    <button onClick={clearAuthState} className="text-sm font-bold text-primary-container hover:underline">Sign Out</button>
+                  </div>
+                  <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary-container text-sm md:text-base">
+                    {user?.name?.[0] || 'U'}
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => navigate('/login')} className="hidden sm:block bg-primary-container text-on-primary px-6 md:px-8 py-2 md:py-2.5 rounded-full text-base font-bold shadow-lg shadow-primary-container/20 hover:scale-105 transition-all">Sign In</button>
+              )}
+            </div>
+          </nav>
 
-      <footer className="bg-[#F9F9F7] dark:bg-[#0F0D15] border-t border-slate-200 dark:border-slate-800 py-16 transition-colors">
-        <div className="flex flex-col md:flex-row justify-between items-center px-8 max-w-[1200px] mx-auto w-full gap-8">
-          <div className="text-center md:text-left">
-            <div className="text-lg font-bold text-slate-900 dark:text-violet-200 mb-2">Truely</div>
-            <p className="text-xs text-slate-400 dark:text-violet-300/40 tracking-wide">© 2026 Truely Verification Systems. <br />Protecting career journeys worldwide.</p>
-          </div>
-          <div className="flex gap-12 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-            <a href="#" className="hover:text-primary-container transition-colors">Privacy</a>
-            <a href="#" className="hover:text-primary-container transition-colors">Terms</a>
-            <a href="#" className="hover:text-primary-container transition-colors">API</a>
-          </div>
+          {/* Mobile Menu Overlay */}
+          {isMobileMenuOpen && (
+            <div className="absolute top-24 left-4 right-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-100 dark:border-slate-800 rounded-[32px] p-6 shadow-2xl md:hidden animate-fade-in-down pointer-events-auto">
+              <div className="flex flex-col space-y-4">
+                <NavLink to="/" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">Home</NavLink>
+                <NavLink to="/verify" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">Verify</NavLink>
+                <NavLink to="/research" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">Research</NavLink>
+                <NavLink to="/history" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">History</NavLink>
+                <NavLink to="/about" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">About</NavLink>
+                {!isAuthenticated && (
+                  <button onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }} className="w-full bg-primary-container text-on-primary py-4 rounded-2xl font-bold text-lg">Sign In</button>
+                )}
+                {isAuthenticated && (
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3 px-4 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary-container">{user?.name?.[0]}</div>
+                      <span className="font-bold">{user?.name}</span>
+                    </div>
+                    <button onClick={() => { clearAuthState(); setIsMobileMenuOpen(false); }} className="w-full py-4 text-error font-bold text-lg hover:bg-error/5 rounded-2xl transition-colors">Sign Out</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      </footer>
-    </div>
+      </header>
+
+      <div className="min-h-screen flex flex-col bg-[#F9F9F7] dark:bg-[#0A0A0B] transition-colors duration-700">
+        <div className="pt-20 md:pt-32 flex-grow">
+          <Routes>
+            <Route path="/" element={renderLanding()} />
+            <Route path="/verify" element={renderVerify()} />
+            <Route path="/research" element={renderResearch()} />
+            <Route path="/report" element={result ? renderReport() : <Navigate to="/verify" />} />
+            <Route path="/research-report" element={researchResult ? renderResearchReport() : <Navigate to="/research" />} />
+            <Route path="/history" element={isAuthenticated ? renderHistory() : <Navigate to="/login" />} />
+            <Route path="/about" element={renderAbout()} />
+            <Route path="/login" element={renderLogin()} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </div>
+
+        <footer className="bg-[#F9F9F7] dark:bg-[#0F0D15] border-t border-slate-200 dark:border-slate-800 py-12 md:py-16 transition-colors">
+          <div className="flex flex-col md:flex-row justify-between items-center px-6 md:px-8 max-w-[1200px] mx-auto w-full gap-8 md:gap-12">
+            <div className="text-center md:text-left">
+              <div className="text-lg font-bold text-slate-900 dark:text-violet-200 mb-2">Truely</div>
+              <p className="text-[10px] md:text-xs text-slate-400 dark:text-violet-300/40 tracking-wide">© 2026 Truely Verification Systems. <br className="md:hidden" />Protecting career journeys worldwide.</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-6 md:gap-12 text-[10px] md:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+              <NavLink to="/about" className="hover:text-primary-container transition-colors">About</NavLink>
+              <a href="#" className="hover:text-primary-container transition-colors">Privacy</a>
+              <a href="#" className="hover:text-primary-container transition-colors">Terms</a>
+              <a href="#" className="hover:text-primary-container transition-colors">API</a>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </>
   );
 }
 

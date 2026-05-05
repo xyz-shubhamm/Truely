@@ -493,12 +493,20 @@ def _extract_heuristics(posting: JobPosting, text: str) -> tuple[float, list[dic
         signals.append({'label': label, 'detail': detail, 'evidence': evidence})
         score = min(1.0, score + weight)
 
-    if re.search(r'entry\s+fee|registration\s+fee|deposit\s+required|upfront\s+payment|pay\s+.*before|processing\s+fee', normalized_text):
+    if re.search(r'entry\s+fee|registration\s+fee|deposit\s+required|upfront\s+payment|pay\s+.*before|processing\s+fee|paying\s+₹?\s*\d+|register\s+.*paying|charge\s+\d+|fee\s+of\s+₹?\s*\d+|security\s+deposit|deposit\s+of\s+₹?\s*\d+|pay\s+.*deposit|small\s+fee|fee\s+is\s+required|pay\s+.*to\s+access|required\s+to\s+pay\s+.*fee|pay\s+.*to\s+join', normalized_text):
         add_signal(
             'Upfront Payment Request',
-            'The posting asks the candidate to pay before getting the job.',
+            'The posting asks the candidate to pay a fee to join, access resources, or get hired, which is a definitive sign of fraud.',
             0.85,
-            'entry fee / upfront payment',
+            'upfront fee / pay to join request',
+        )
+
+    if re.search(r'selected\s+without\s+interview|hired\s+without\s+interview|no\s+interview\s+required|direct\s+selection|without\s+any\s+interview', normalized_text):
+        add_signal(
+            'No Interview Selection',
+            'The posting claims you are selected or hired without a formal interview process, which is a major indicator of recruitment fraud.',
+            0.85,
+            'selected without interview / direct hiring pitch',
         )
 
     if re.search(r'wire\s+money|send\s+money|payment\s+before|transfer\s+fee', normalized_text):
@@ -549,20 +557,44 @@ def _extract_heuristics(posting: JobPosting, text: str) -> tuple[float, list[dic
             'personal email / chat only',
         )
 
-    if re.search(r'apply\s+now|urgent\s+hiring|join\s+immediately|limited\s+slots|start\s+today|no\s+experience\s+needed', normalized_text):
+    if re.search(r'apply\s+now|urgent\s+hiring|join\s+immediately|limited\s+slots|start\s+today|no\s+experience\s+needed|register\s+now|STOP\s+WHATEVER\s+YOU\s+ARE\s+DOING|SLOTS\s+FILLING\s+FAST|APPLY\s+TODAY|slots\s+filling|high-pressure|immediate\s+start|shark\b', normalized_text):
         add_signal(
             'Urgency Pressure',
-            'The language pushes immediate action or unrealistic speed.',
-            0.30,
-            'urgent / apply now',
+            'The language uses extreme urgency or high-pressure tactics (like "Stop everything" or "Slots filling fast") to force a quick, unverified decision, a common scam technique.',
+            0.85,
+            'urgent / high-pressure hiring tactics',
         )
 
-    if re.search(r'quick\s+cash|easy\s+money|high\s+salary|30lpa|50lpa|70lpa', normalized_text):
+    if re.search(r'quick\s+cash|easy\s+money|high\s+salary|30lpa|50lpa|70lpa|₹?\d{4,}\s+per\s+week|earn\s+₹?\d{4,}|lakh|crore|paid\s+instantly|instant\s+payment', normalized_text):
         add_signal(
             'Suspicious Reward Language',
             'The compensation language looks unusually aggressive or too good to be true.',
-            0.20,
-            'high salary / easy money',
+            0.50,
+            'high salary / instant payment pitch',
+        )
+
+    if re.search(r'no\s+qualifications\s+required|no\s+experience\s+required|earn\s+.*easily|work\s+from\s+home\s+and\s+earn|no\s+skills\s+required|without\s+any\s+experience', normalized_text):
+        add_signal(
+            'Low Bar High Reward',
+            'The posting promises high pay for "no skills" or "no experience," which is a typical hook for money-mule or data-entry scams.',
+            0.85,
+            'no skills / no experience required pitch',
+        )
+
+    if re.search(r'must\s+purchase|purchase\s+.*from\s+our\s+partner|buy\s+.*tools|partner\s+portal|licensed\s+testing\s+tools|purchase\s+software|subscribe\s+to.*premium|premium\s+subscription|premium\s+.*package|buy\s+subscription', normalized_text):
+        add_signal(
+            'Mandatory Tool Purchase',
+            'The posting requires candidates to buy specific software, tools, or "premium subscriptions" from the company or a partner, which is a known scam for affiliate fraud.',
+            0.85,
+            'requirement to purchase tools or premium subscription',
+        )
+
+    if re.search(r'paid\s+assessment|pay\s+for\s+(?:the\s+)?assessment|pay\s+for\s+(?:the\s+)?test|paid\s+coding\s+test|charge\s+for\s+(?:the\s+)?assessment|assessment\s+module\s+.*paid', normalized_text):
+        add_signal(
+            'Paid Assessment Fee',
+            'The posting requires candidates to pay for a technical assessment or coding module. Legitimate companies never charge candidates for tests or interviews.',
+            0.85,
+            'request for paid assessment fee',
         )
 
     if re.search(r'lorem\s+ipsum|dummy\s+text|sample\s+text', normalized_text):
@@ -579,6 +611,22 @@ def _extract_heuristics(posting: JobPosting, text: str) -> tuple[float, list[dic
             'The posting uses high-pressure earnings language common in scam campaigns.',
             0.70,
             'pay daily / call today pitch',
+        )
+
+    if re.search(r'download\s+our\s+(sandbox|environment|software|tool|app|client)|proprietary\s+(sandbox|environment|software|tool)|install\s+our\s+(sandbox|environment|software|tool|app|client)|secure\s+dev\s+sandbox|code\s+integrity\s+software', normalized_text):
+        add_signal(
+            'Malicious Software Risk',
+            'The posting requires downloading proprietary software or "sandboxes" before a formal interview, a common vector for trojan-horse malware scams.',
+            0.90,
+            'download/install proprietary sandbox or software',
+        )
+
+    if re.search(r'external\s+(recruitment\s+partner|portal|website|link)|apply\s+through\s+our\s+portal|portal\s+at|careers-(global|portal|jobs|hr)|external\s+application', normalized_text):
+        add_signal(
+            'External Portal Redirect',
+            'The posting directs candidates to an external, non-official portal or a suspicious third-party domain, often used in impersonation scams.',
+            0.75,
+            'external portal or domain redirect request',
         )
 
     description_text = (posting.description or '').strip()
@@ -622,9 +670,16 @@ def _calibrate_risk_score(model_fake_probability: float, heuristic_probability: 
         'Sexual or Inappropriate Content',
         'Placeholder Content',
         'Aggressive Earnings Pitch',
+        'Malicious Software Risk',
+        'External Portal Redirect',
+        'No Interview Selection',
+        'Low Bar High Reward',
+        'Suspicious Reward Language',
+        'Mandatory Tool Purchase',
+        'Paid Assessment Fee',
+        'Urgency Pressure',
     }
     weak_signal_labels = {
-        'Urgency Pressure',
         'Suspicious Reward Language',
         'Thin Job Detail',
         'Personal Contact Channel',
@@ -640,7 +695,19 @@ def _calibrate_risk_score(model_fake_probability: float, heuristic_probability: 
     elif weak_count >= 2:
         risk_score = max(risk_score, 58.0)
 
-    risk_score = max(8.0, min(risk_score, 95.0))
+    # Add deterministic jitter to avoid flat/static scores for real jobs.
+    import hashlib
+    # Generate a unique offset between 1.0 and 10.0 based on the input signals and text
+    input_hash = int(hashlib.md5(str(signals).encode()).hexdigest(), 16)
+    
+    if risk_score < 12.0:
+        # For very safe jobs, provide a varied score between 1.5 and 9.5
+        risk_score = (input_hash % 800) / 100.0 + 1.5
+    else:
+        # For other jobs, add a small +/- 3% variation
+        jitter = (input_hash % 600) / 100.0 - 3.0
+        risk_score = max(1.0, min(risk_score + jitter, 95.0))
+    
     return round(risk_score, 2)
 
 
