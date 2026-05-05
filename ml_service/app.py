@@ -402,9 +402,15 @@ def _get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends
 
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        user_id = int(payload.get('sub', 0))
-    except (InvalidTokenError, ValueError):
-        raise HTTPException(status_code=401, detail='Invalid token') from None
+        sub = payload.get('sub', '0')
+        try:
+            user_id = int(sub)
+        except (ValueError, TypeError):
+            # If it's a UUID or non-integer string, we use it as is
+            user_id = sub
+    except Exception as exc:
+        print(f"Auth failed: {exc}")
+        raise HTTPException(status_code=401, detail='Invalid token')
 
     fallback_user = {
         'id': user_id,
@@ -1121,7 +1127,7 @@ def api_predict(
 @app.get('/api/history')
 def api_history(limit: int = 20, current_user: dict[str, Any] = Depends(_get_current_user)) -> dict[str, Any]:
     safe_limit = max(1, min(limit, 100))
-    analysis_user_id = int(current_user['id'])
+    analysis_user_id = current_user['id']
 
     try:
         with engine.connect() as connection:
@@ -1229,7 +1235,7 @@ def api_get_research_history(
     limit: int = 50,
     current_user: dict[str, Any] = Depends(_get_current_user),
 ) -> dict[str, Any]:
-    user_id = int(current_user['id'])
+    user_id = current_user['id']
 
     with engine.connect() as connection:
         query = (
@@ -1255,7 +1261,7 @@ def api_get_research_history(
     
 @app.delete('/api/research-history')
 def api_clear_research_history(current_user: dict[str, Any] = Depends(_get_current_user)) -> dict[str, Any]:
-    user_id = int(current_user['id'])
+    user_id = current_user['id']
 
     with engine.begin() as connection:
         result = connection.execute(
@@ -1267,7 +1273,7 @@ def api_clear_research_history(current_user: dict[str, Any] = Depends(_get_curre
 
 @app.delete('/api/research-history/{research_id}')
 def api_delete_research_item(research_id: int, current_user: dict[str, Any] = Depends(_get_current_user)) -> dict[str, Any]:
-    user_id = int(current_user['id'])
+    user_id = current_user['id']
 
     with engine.begin() as connection:
         result = connection.execute(
