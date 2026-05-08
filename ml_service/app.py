@@ -1317,11 +1317,14 @@ async def extract_pdf(file: UploadFile = File(...), current_user: dict[str, Any]
         
         # GPT-like intelligence: Extract structured details
         details = await _extract_details_with_llm(text_content)
+        # Check if the extracted text is actually a job description
+        is_job = _is_job_posting(text_content)
             
         return {
             "text": text_content.strip(),
             "extracted_title": details.get("title", ""),
-            "extracted_company": details.get("company", "")
+            "extracted_company": details.get("company", ""),
+            "is_job": is_job
         }
     except Exception as e:
         print(f"PDF Extraction error: {e}")

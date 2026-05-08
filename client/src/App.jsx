@@ -33,6 +33,7 @@ function AppShell() {
   const [result, setResult] = useState(null);
   const [researchResult, setResearchResult] = useState(null);
   const [error, setError] = useState('');
+  const [isJobDescription, setIsJobDescription] = useState(true);
   
   const [jobHistory, setJobHistory] = useState([]);
   const [researchHistory, setResearchHistory] = useState([]);
@@ -93,7 +94,7 @@ function AppShell() {
           if (response.ok) {
             const data = await response.json();
             saveSession(data.token, data.user);
-            if (location.pathname === '/login' || location.pathname === '/') {
+            if (location.pathname === '/login') {
               navigate('/verify');
             }
           }
@@ -380,8 +381,12 @@ function AppShell() {
                       title: data.extracted_title || f.title || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' '),
                       company_profile: data.extracted_company || f.company_profile || 'Unknown'
                     }));
-                    if (!data.extracted_title || !data.extracted_company) {
-                      setError('PDF text extracted, but some fields could not be identified automatically. Please review them.');
+                    if (data.is_job === false) {
+                      setIsJobDescription(false);
+                      setError('This PDF does not appear to be a job description. Please upload a valid JD.');
+                    } else {
+                      setIsJobDescription(true);
+                      setError('');
                     }
                   }
                 } catch (err) { setError('Failed to extract PDF text'); }
@@ -410,8 +415,12 @@ function AppShell() {
                       title: data.extracted_title || f.title || file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' '),
                       company_profile: data.extracted_company || f.company_profile || 'Unknown'
                     }));
-                    if (!data.extracted_title || !data.extracted_company) {
-                      setError('PDF text extracted, but some fields could not be identified automatically. Please review them.');
+                    if (data.is_job === false) {
+                      setIsJobDescription(false);
+                      setError('This PDF does not appear to be a job description. Please upload a valid JD.');
+                    } else {
+                      setIsJobDescription(true);
+                      setError('');
                     }
                   }
                   } catch (err) { setError('Failed to extract PDF text'); }
@@ -430,7 +439,7 @@ function AppShell() {
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Job Description</label>
               {form.description && (
-                <button type="button" onClick={() => setForm(f => ({...f, description: ''}))} className="text-[10px] text-error font-black uppercase tracking-widest hover:underline">Clear Text</button>
+                <button type="button" onClick={() => { setForm(f => ({...f, description: ''})); setIsJobDescription(true); setError(''); }} className="text-[10px] text-error font-black uppercase tracking-widest hover:underline">Clear Text</button>
               )}
             </div>
             <textarea
@@ -438,7 +447,7 @@ function AppShell() {
               placeholder="Paste the job description here or use the PDF uploader above..."
               required
               value={form.description}
-              onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+              onChange={(e) => { setForm(f => ({ ...f, description: e.target.value })); setIsJobDescription(true); setError(''); }}
               className="w-full p-md bg-surface-container-low dark:bg-slate-800 border-none rounded-xl focus:ring-2 focus:ring-primary-container outline-none resize-none dark:text-white transition-all font-mono text-sm md:text-base"
             />
           </div>
@@ -446,10 +455,10 @@ function AppShell() {
           <div className="flex justify-center mt-6 md:mt-xl">
             <button 
               type="submit"
-              disabled={loading}
-              className="w-full md:min-w-[240px] bg-primary-container text-on-primary py-4 px-lg rounded-xl font-button text-body-md shadow-lg shadow-primary-container/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+              disabled={loading || !isJobDescription}
+              className="w-full md:min-w-[240px] bg-primary-container text-on-primary py-4 px-lg rounded-xl font-button text-body-md shadow-lg shadow-primary-container/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
             >
-              {loading ? 'Analyzing...' : 'Run Analysis'}
+              {loading ? 'Analyzing...' : (!isJobDescription ? 'Invalid JD Detected' : 'Run Analysis')}
             </button>
           </div>
         </form>
@@ -961,7 +970,7 @@ function AppShell() {
             </div>
             
             <div className="hidden md:flex items-center space-x-10 font-display text-lg font-medium tracking-tight">
-              <NavLink to="/" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive && location.pathname === '/' ? 'text-primary-container' : 'text-slate-500'}`}>Home</NavLink>
+              <NavLink to="/" end className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>Home</NavLink>
               <NavLink to="/verify" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>Verify</NavLink>
               <NavLink to="/research" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>Research</NavLink>
               <NavLink to="/history" className={({ isActive }) => `transition-all hover:text-primary-container ${isActive ? 'text-primary-container' : 'text-slate-500'}`}>History</NavLink>
@@ -999,7 +1008,7 @@ function AppShell() {
           {isMobileMenuOpen && (
             <div className="absolute top-24 left-4 right-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-100 dark:border-slate-800 rounded-[32px] p-6 shadow-2xl md:hidden animate-fade-in-down pointer-events-auto">
               <div className="flex flex-col space-y-4">
-                <NavLink to="/" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">Home</NavLink>
+                <NavLink to="/" end onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg ${isActive ? 'text-primary-container' : ''}`}>Home</NavLink>
                 <NavLink to="/verify" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">Verify</NavLink>
                 <NavLink to="/research" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">Research</NavLink>
                 <NavLink to="/history" onClick={() => setIsMobileMenuOpen(false)} className="px-4 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-lg">History</NavLink>
