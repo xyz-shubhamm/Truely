@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 // Truely App v1.2 - Styled Reports & Redirect Fix
 import {
   BrowserRouter,
@@ -55,6 +55,7 @@ function AppShell() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const authSyncRef = useRef(false);
   const isAuthenticated = Boolean(token && user);
 
   useEffect(() => {
@@ -80,6 +81,8 @@ function AppShell() {
           return; 
         }
 
+        if (authSyncRef.current) return;
+        authSyncRef.current = true;
         setAuthLoading(true);
         try {
           const response = await fetch('/auth/google', {
@@ -99,6 +102,7 @@ function AppShell() {
           setAuthError('Authentication failed. Please try again.');
         } finally {
           setAuthLoading(false);
+          authSyncRef.current = false;
         }
       } else if (event === 'SIGNED_OUT') {
         clearAuthState();

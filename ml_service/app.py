@@ -13,17 +13,9 @@ from typing import Any
 from company_researcher import research_company
 import joblib
 import pypdf
-from fastapi import Depends, FastAPI, HTTPException, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, MetaData, String, Table, create_engine, desc, func, inspect, select, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.exc import SQLAlchemyError
-import jwt
-from jwt.exceptions import InvalidTokenError
-import requests
 import httpx
+from fastapi import Depends, FastAPI, HTTPException, File, UploadFile, BackgroundTasks
+from starlette.concurrency import run_in_threadpool
 from openai import OpenAI
 from groq import Groq
 
@@ -301,6 +293,9 @@ def _verify_password(password: str, stored_hash: str) -> bool:
     except Exception:
         return False
 
+# Global HTTP client for connection pooling
+http_client = httpx.AsyncClient(timeout=15.0, limits=httpx.Limits(max_connections=100, max_keepalive_connections=20))
+
 local_model_ready = False
 local_model_label = ''
 local_model_artifact: Any = None
@@ -380,25 +375,24 @@ def _create_access_token(subject: str, extra_claims: dict[str, Any] | None = Non
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
-def _supabase_auth_get(path: str, access_token: str) -> dict[str, Any]:
+async def _supabase_auth_get(path: str, access_token: str) -> dict[str, Any]:
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
         raise HTTPException(status_code=500, detail='Supabase auth is not configured')
 
     endpoint = f'{SUPABASE_URL}/auth/v1{path}'
     try:
-        resp = requests.get(
+        resp = await http_client.get(
             endpoint,
             headers={
                 'apikey': SUPABASE_ANON_KEY,
                 'Authorization': f'Bearer {access_token}',
             },
-            timeout=10,
         )
         if resp.status_code == 401:
             raise HTTPException(status_code=401, detail='Invalid Google session token')
         resp.raise_for_status()
         return resp.json()
-    except requests.exceptions.RequestException as exc:
+    except httpx.HTTPError as exc:
         print(f"Supabase auth call failed: {exc}")
         raise HTTPException(status_code=502, detail='Unable to reach Supabase auth service') from None
 
@@ -899,8 +893,9 @@ def api_info() -> dict[str, Any]:
 
 @app.post('/auth/google')
 @app.post('/api/auth/google')
-def auth_google(payload: GoogleAuthRequest) -> dict[str, Any]:
-    profile = _supabase_auth_get('/user', payload.access_token)
+async def auth_google(payload: GoogleAuthRequest) -> dict[str, Any]:
+    # Use async HTTP client for external call
+    profile = await _supabase_auth_get('/user', payload.access_token)
     email = _normalize_email(str(profile.get('email', '')))
     if not email:
         raise HTTPException(status_code=400, detail='Google account email is required')
@@ -927,21 +922,26 @@ def auth_google(payload: GoogleAuthRequest) -> dict[str, Any]:
             },
         }
 
-    with engine.begin() as connection:
-        existing = connection.execute(select(users_table).where(users_table.c.email == email)).mappings().first()
-        if existing:
-            row = existing
-        else:
-            row = connection.execute(
+    # Offload blocking database operations to a thread pool
+    def _db_sync():
+        with engine.begin() as connection:
+            existing = connection.execute(select(users_table).where(users_table.c.email == email)).mappings().first()
+            if existing:
+                return existing
+            
+            # For Google users, we skip expensive password hashing
+            return connection.execute(
                 users_table.insert().values(
                     email=email,
                     name=safe_name,
-                    password_hash=_hash_password(secrets.token_urlsafe(32)),
+                    password_hash=f'!GOOGLE_AUTH_{secrets.token_urlsafe(16)}',
                     email_verified=True,
                     email_verification_token=None,
                     verified_at=dt.datetime.now(dt.timezone.utc),
                 ).returning(users_table)
             ).mappings().first()
+
+    row = await run_in_threadpool(_db_sync)
 
     token = _create_access_token(
         str(row['id']),
@@ -952,7 +952,7 @@ def auth_google(payload: GoogleAuthRequest) -> dict[str, Any]:
 
 @app.post('/auth/signup')
 @app.post('/api/auth/signup')
-def auth_signup(payload: EmailSignupRequest) -> dict[str, Any]:
+async def auth_signup(payload: EmailSignupRequest) -> dict[str, Any]:
     """Register a new user with email and password."""
     email = _normalize_email(payload.email)
     
@@ -965,30 +965,34 @@ def auth_signup(payload: EmailSignupRequest) -> dict[str, Any]:
     if not DATABASE_READY:
         raise HTTPException(status_code=503, detail='Database not available')
 
-    password_hash = _hash_password(payload.password)
+    # Expensive hashing offloaded to thread
+    password_hash = await run_in_threadpool(_hash_password, payload.password)
     name = payload.name.strip()[:120] or email.split('@', 1)[0]
 
     try:
-        with engine.begin() as connection:
-            # Check if user already exists
-            existing = connection.execute(
-                select(users_table).where(users_table.c.email == email)
-            ).mappings().first()
-            
-            if existing:
-                raise HTTPException(status_code=400, detail='Email already registered')
-            
-            # Create new user
-            row = connection.execute(
-                users_table.insert().values(
-                    email=email,
-                    name=name,
-                    password_hash=password_hash,
-                    email_verified=True,  # Auto-verify for simple signup
-                    email_verification_token=None,
-                    verified_at=dt.datetime.now(dt.timezone.utc),
-                ).returning(users_table)
-            ).mappings().first()
+        def _db_signup():
+            with engine.begin() as connection:
+                # Check if user already exists
+                existing = connection.execute(
+                    select(users_table).where(users_table.c.email == email)
+                ).mappings().first()
+                
+                if existing:
+                    raise HTTPException(status_code=400, detail='Email already registered')
+                
+                # Create new user
+                return connection.execute(
+                    users_table.insert().values(
+                        email=email,
+                        name=name,
+                        password_hash=password_hash,
+                        email_verified=True,  # Auto-verify for simple signup
+                        email_verification_token=None,
+                        verified_at=dt.datetime.now(dt.timezone.utc),
+                    ).returning(users_table)
+                ).mappings().first()
+
+        row = await run_in_threadpool(_db_signup)
 
         token = _create_access_token(
             str(row['id']),
@@ -1004,7 +1008,7 @@ def auth_signup(payload: EmailSignupRequest) -> dict[str, Any]:
 
 @app.post('/auth/login')
 @app.post('/api/auth/login')
-def auth_login(payload: EmailLoginRequest) -> dict[str, Any]:
+async def auth_login(payload: EmailLoginRequest) -> dict[str, Any]:
     """Login with email and password."""
     email = _normalize_email(payload.email)
     
@@ -1033,23 +1037,31 @@ def auth_login(payload: EmailLoginRequest) -> dict[str, Any]:
         }
 
     try:
-        with engine.begin() as connection:
-            row = connection.execute(
-                select(users_table).where(users_table.c.email == email)
-            ).mappings().first()
-            
-            if not row:
-                raise HTTPException(status_code=401, detail='Invalid email or password')
-            
-            # Verify password
-            if not _verify_password(payload.password, row['password_hash']):
-                raise HTTPException(status_code=401, detail='Invalid email or password')
-            
-            token = _create_access_token(
-                str(row['id']),
-                {'email': email, 'name': row['name']},
-            )
-            return {'token': token, 'user': _serialize_user(row)}
+        def _db_login():
+            with engine.begin() as connection:
+                row = connection.execute(
+                    select(users_table).where(users_table.c.email == email)
+                ).mappings().first()
+                
+                if not row:
+                    return None, "Invalid email or password"
+                
+                return row, None
+
+        row, error = await run_in_threadpool(_db_login)
+        if error or not row:
+            raise HTTPException(status_code=401, detail=error or 'Invalid email or password')
+        
+        # Verify password (expensive check offloaded to thread)
+        is_valid = await run_in_threadpool(_verify_password, payload.password, row['password_hash'])
+        if not is_valid:
+            raise HTTPException(status_code=401, detail='Invalid email or password')
+        
+        token = _create_access_token(
+            str(row['id']),
+            {'email': email, 'name': row['name']},
+        )
+        return {'token': token, 'user': _serialize_user(row)}
     
     except HTTPException:
         raise
