@@ -455,10 +455,20 @@ function AppShell() {
           <div className="flex justify-center mt-6 md:mt-xl">
             <button 
               type="submit"
-              disabled={loading || !isJobDescription}
-              className="w-full md:min-w-[240px] bg-primary-container text-on-primary py-4 px-lg rounded-xl font-button text-body-md shadow-lg shadow-primary-container/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:grayscale"
+              disabled={loading}
+              className="w-full md:min-w-[280px] bg-primary-container text-on-primary h-14 rounded-2xl font-black text-base shadow-xl shadow-primary-container/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-3"
             >
-              {loading ? 'Analyzing...' : (!isJobDescription ? 'Invalid JD Detected' : 'Run Analysis')}
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span className="tracking-widest uppercase text-xs">Processing...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-xl">analytics</span>
+                  <span>Run Forensic Analysis</span>
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -497,9 +507,19 @@ function AppShell() {
             <button 
               type="submit"
               disabled={loading}
-              className="w-full md:min-w-[240px] bg-primary-container text-on-primary py-4 px-lg rounded-xl font-button text-body-md shadow-lg shadow-primary-container/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+              className="w-full md:min-w-[240px] bg-primary-container text-on-primary h-14 rounded-2xl font-black text-base shadow-xl shadow-primary-container/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-70 flex items-center justify-center gap-3"
             >
-              {loading ? 'Searching...' : 'Start Research'}
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span className="tracking-widest uppercase text-xs">Searching...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-xl">travel_explore</span>
+                  <span>Start Research</span>
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -937,47 +957,6 @@ function AppShell() {
     </main>
   );
 
-  const renderLoadingOverlay = () => {
-    if (!loading) return null;
-    const isResearch = location.pathname === '/research';
-    
-    return (
-      <div className="fixed inset-0 z-[250] flex flex-col items-center justify-center bg-white/40 dark:bg-[#0A0A0B]/60 backdrop-blur-2xl animate-fade-in">
-        <div className="relative mb-10">
-          {/* Animated Rings */}
-          <div className="w-28 h-28 rounded-full border-2 border-primary-container/10 border-t-primary-container animate-spin"></div>
-          <div className="absolute inset-0 w-28 h-28 rounded-full border-2 border-transparent border-b-violet-400/40 animate-spin-slow"></div>
-          
-          {/* Central Pulse Element */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-14 h-14 rounded-full bg-primary-container flex items-center justify-center animate-pulse-ring shadow-[0_0_40px_rgba(111,102,241,0.4)]">
-              <span className="material-symbols-outlined text-white text-2xl">
-                {isResearch ? 'analytics' : 'security'}
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="glass-card px-10 py-8 rounded-[32px] text-center max-w-sm mx-6 luxury-shadow">
-          <h2 className="text-xl md:text-2xl font-black text-on-surface dark:text-white tracking-tightest mb-3 uppercase">
-            {isResearch ? 'Deep Intelligence' : 'Forensic Audit'}
-          </h2>
-          <p className="text-on-surface-variant dark:text-slate-400 font-bold text-xs md:text-sm tracking-widest uppercase opacity-80 flex items-center justify-center gap-2">
-            <span>Querying AI Nodes</span>
-            <span className="flex gap-1">
-              <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-              <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-              <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-            </span>
-          </p>
-        </div>
-
-        {/* Ambient background glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary-container/5 rounded-full blur-[120px] pointer-events-none"></div>
-      </div>
-    );
-  };
-
   const renderLogin = () => (
     <main className="flex-grow flex items-center justify-center px-gutter py-xxl reveal">
       <div className="w-full max-w-[440px] bg-white dark:bg-[#1A1625] rounded-[20px] luxury-shadow p-xl flex flex-col items-center border border-white dark:border-slate-800">
@@ -1073,7 +1052,6 @@ function AppShell() {
       </header>
 
       <div className="min-h-screen flex flex-col bg-[#F9F9F7] dark:bg-[#0A0A0B] transition-colors duration-700">
-        {renderLoadingOverlay()}
         <div className="pt-20 md:pt-32 flex-grow">
           <Routes>
             <Route path="/" element={renderLanding()} />
