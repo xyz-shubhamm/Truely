@@ -74,9 +74,9 @@ function AppShell() {
       if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
         const storedToken = localStorage.getItem(TOKEN_KEY);
         
-        // If we already have a token and it's not a fresh sign in, don't show the loading overlay
-        // This prevents the "Verifying Session" flicker on tab switches or re-focus
-        if (storedToken && event === 'INITIAL_SESSION') {
+        // If we already have a token, don't trigger a new sync/loading state.
+        // This prevents the "Verifying Session" overlay and redirects on tab switches or re-focus.
+        if (storedToken) {
           return; 
         }
 
@@ -948,12 +948,6 @@ function AppShell() {
 
   return (
     <>
-      {authLoading && (
-        <div className="fixed inset-0 z-[1000] bg-white/80 dark:bg-[#0A0A0B]/90 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in">
-          <div className="w-16 h-16 border-4 border-primary-fixed/20 border-t-primary-container rounded-full animate-spin mb-6"></div>
-          <p className="text-sm font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] animate-pulse">Verifying Session</p>
-        </div>
-      )}
       <header className="fixed top-0 left-0 right-0 z-[150] pointer-events-none">
         <div className="w-full flex justify-center p-4 md:p-6">
           <nav className="w-full max-w-[1300px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/50 dark:border-slate-800/50 rounded-full px-6 md:px-10 py-4 md:py-5 luxury-shadow flex items-center justify-between pointer-events-auto">
