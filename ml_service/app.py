@@ -470,42 +470,59 @@ def _build_posting_text(posting: JobPosting) -> str:
 
 
 def _is_job_posting(text: str) -> bool:
-    """Check if the text content is likely a job posting."""
+    """Check if the text content is likely a job posting using heuristics."""
+    if not text:
+        return False
+        
     normalized = text.lower()
     
+    # If the text is very short but has "Job Description" or "Role", it's likely a job.
+    if len(normalized) < 300:
+        if 'job description' in normalized or 'position summary' in normalized or 'about the role' in normalized:
+            return True
+        if 'intern' in normalized or 'vacancy' in normalized:
+            return True
+
     # Core Job Description sections/headers (Higher weight)
     core_keywords = [
         'responsibilities', 'requirements', 'qualifications', 'experience',
         'salary', 'benefits', 'job description', 'duties', 'who you are',
         'what you will do', 'minimum qualifications', 'preferred qualifications',
-        'about the role', 'what we offer', 'equal opportunity employer'
+        'about the role', 'what we offer', 'equal opportunity employer',
+        'skills', 'education', 'background', 'role overview'
     ]
     
     # Contextual Job words (Lower weight)
     context_keywords = [
         'hiring', 'recruiting', 'candidate', 'opportunity', 'career',
         'intern', 'full-time', 'part-time', 'contract', 'engineer',
-        'developer', 'manager', 'software', 'location', 'remote', 'apply'
+        'developer', 'manager', 'software', 'location', 'remote', 'apply',
+        'posting', 'position', 'applicant', 'team'
     ]
     
     core_matches = sum(1 for word in core_keywords if word in normalized)
     context_matches = sum(1 for word in context_keywords if word in normalized)
     
-    # Also check for structural patterns like "About [Company]" or "Apply now"
+    # Structural patterns
     structural_patterns = [
         r'about\s+(?:us|the\s+company|the\s+role)',
         r'apply\s+(?:now|here|online)',
         r'send\s+(?:your\s+)?cv|resume',
         r'looking\s+for\s+a',
-        r'join\s+our\s+team'
+        r'join\s+our\s+team',
+        r'reporting\s+to',
+        r'equal\s+opportunity'
     ]
     has_structural = any(re.search(pattern, normalized) for pattern in structural_patterns)
     
     # Heuristic scoring
     score = (core_matches * 2) + context_matches + (3 if has_structural else 0)
     
-    # Require a decent score (at least 4) to be considered a job posting
-    return score >= 4
+    # Stronger length consideration
+    if len(normalized) > 1000 and score >= 3:
+        return True
+        
+    return score >= 3
 
 
 def _extract_heuristics(posting: JobPosting, text: str) -> tuple[float, list[dict[str, str]]]:
@@ -1249,25 +1266,24 @@ def _predict_from_posting(
     }
 
 
-async def _extract_details_with_llm(text: str) -> dict[str, str]:
+async def _extract_details_with_llm(text: str) -> dict[str, Any]:
     """Use LLM to extract structured job details from raw text."""
     api_key = os.getenv('GROQ_API_KEY') or os.getenv('OPENAI_API_KEY')
     if not api_key:
-        return {"title": "", "company": ""}
+        return {"title": "", "company": "", "is_job": False}
 
     prompt = f"""
-    Analyze the following job posting text extracted from a PDF and extract the structural details.
-    
-    1. Job Title: The official name of the position.
-    2. Company Name: The name of the hiring company or organization.
+    Analyze the following text extracted from a PDF. 
+    First, determine if this text is a Job Description (JD), Job Posting, or Internship listing.
+    Then, extract the official Job Title and the Name of the Company/Organization.
     
     Guidelines:
-    - Search specifically for headers like "About [Company]", "Hiring at [Company]", or email domains (e.g. hr@company.com).
-    - If the company name is not explicitly mentioned, look for recurring names or logos in text format.
-    - If you see "About Us", the sentence immediately following it often contains the company name.
-    - For the Title, look for the largest/topmost text or headers like "Position:", "Role:", or "Job Title:".
-    - Return ONLY a valid JSON object with keys "title" and "company".
-    - Use empty strings if any field is absolutely not found.
+    - If the text mentions "Introduction", "About us", "Responsibilities", or "Job Description", it is almost certainly a job.
+    - If the text is just a random article, letter, or unrelated document, set "is_job" to false.
+    - Return a JSON object with:
+      1. "is_job": boolean (true if it is a job/internship posting, false otherwise)
+      2. "title": string (the official name of the position)
+      3. "company": string (the name of the hiring organization)
     
     Text:
     {text[:4000]}
@@ -1315,10 +1331,14 @@ async def extract_pdf(file: UploadFile = File(...), current_user: dict[str, Any]
         if not text_content.strip():
             return {"text": "", "warning": "No text could be extracted from this PDF."}
         
-        # GPT-like intelligence: Extract structured details
+        # LLM intelligence: Extract structured details and verify if it's a job
         details = await _extract_details_with_llm(text_content)
-        # Check if the extracted text is actually a job description
-        is_job = _is_job_posting(text_content)
+        
+        # Use LLM classification as primary, fall back to heuristics
+        is_job = details.get("is_job", False)
+        if not is_job:
+            # Secondary check with heuristics in case LLM was too strict or failed
+            is_job = _is_job_posting(text_content)
             
         return {
             "text": text_content.strip(),
