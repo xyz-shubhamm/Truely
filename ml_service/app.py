@@ -14,7 +14,14 @@ from company_researcher import research_company
 import joblib
 import pypdf
 import httpx
+import jwt
 from fastapi import Depends, FastAPI, HTTPException, File, UploadFile, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, MetaData, String, Table, create_engine, desc, func, inspect, select, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from openai import OpenAI
 from groq import Groq
