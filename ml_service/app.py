@@ -1,4 +1,6 @@
 from __future__ import annotations
+import asyncio
+
 
 import datetime as dt
 import hashlib
@@ -357,6 +359,8 @@ class JobPosting(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     access_token: str = Field(min_length=20, max_length=4096)
+    email: str | None = None
+    name: str | None = None
 
 
 class EmailSignupRequest(BaseModel):
@@ -918,60 +922,80 @@ def api_info() -> dict[str, Any]:
 @app.post('/auth/google')
 @app.post('/api/auth/google')
 async def auth_google(payload: GoogleAuthRequest) -> dict[str, Any]:
-    # Use async HTTP client for external call
-    profile = await _supabase_auth_get('/user', payload.access_token)
+    # Normalize email from payload if provided
+    provided_email = _normalize_email(payload.email) if payload.email else None
+
+    # Helper for DB lookup
+    async def _get_existing_user(email_to_check: str | None):
+        if not DATABASE_READY or not email_to_check:
+            return None
+        def _lookup():
+            try:
+                with engine.connect() as connection:
+                    return connection.execute(select(users_table).where(users_table.c.email == email_to_check)).mappings().first()
+            except Exception:
+                return None
+        return await run_in_threadpool(_lookup)
+
+    # Run Supabase verification and DB lookup in parallel
+    # This saves ~500ms to 1s of sequential wait time
+    tasks = [asyncio.create_task(_supabase_auth_get('/user', payload.access_token))]
+    if provided_email:
+        tasks.append(asyncio.create_task(_get_existing_user(provided_email)))
+    
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Handle Supabase profile result
+    profile = results[0]
+    if isinstance(profile, Exception):
+        print(f"Supabase verification failed: {profile}")
+        raise HTTPException(status_code=401, detail='Invalid Google session token')
+
     email = _normalize_email(str(profile.get('email', '')))
     if not email:
         raise HTTPException(status_code=400, detail='Google account email is required')
 
+    # Security check: if provided email doesn't match verified email, discard DB result
+    existing_row = None
+    if len(results) > 1 and not isinstance(results[1], Exception):
+        if provided_email == email:
+            existing_row = results[1]
+
     metadata = profile.get('user_metadata') or {}
     derived_name = str(metadata.get('full_name') or metadata.get('name') or email.split('@', 1)[0]).strip()
-    safe_name = (derived_name or 'Google User')[:120]
+    safe_name = (derived_name or payload.name or 'Google User')[:120]
 
     # Use a stable fallback identifier so login still works when the DB is unavailable.
     fallback_user_id = int(hashlib.sha256(email.encode('utf-8')).hexdigest()[:12], 16)
 
     if not DATABASE_READY:
-        token = _create_access_token(
-            str(fallback_user_id),
-            {'email': email, 'name': safe_name},
-        )
+        token = _create_access_token(str(fallback_user_id), {'email': email, 'name': safe_name})
         return {
             'token': token,
-            'user': {
-                'id': fallback_user_id,
-                'email': email,
-                'name': safe_name,
-                'created_at': None,
-            },
+            'user': {'id': fallback_user_id, 'email': email, 'name': safe_name, 'created_at': None}
         }
 
-    # Offload blocking database operations to a thread pool
-    def _db_sync():
-        with engine.begin() as connection:
-            existing = connection.execute(select(users_table).where(users_table.c.email == email)).mappings().first()
-            if existing:
-                return existing
-            
-            # For Google users, we skip expensive password hashing
-            return connection.execute(
-                users_table.insert().values(
-                    email=email,
-                    name=safe_name,
-                    password_hash=f'!GOOGLE_AUTH_{secrets.token_urlsafe(16)}',
-                    email_verified=True,
-                    email_verification_token=None,
-                    verified_at=dt.datetime.now(dt.timezone.utc),
-                ).returning(users_table)
-            ).mappings().first()
+    # If we didn't find the user in parallel lookup (or didn't have email), do it now or create
+    if not existing_row:
+        def _db_sync():
+            with engine.begin() as connection:
+                existing = connection.execute(select(users_table).where(users_table.c.email == email)).mappings().first()
+                if existing:
+                    return existing
+                return connection.execute(
+                    users_table.insert().values(
+                        email=email,
+                        name=safe_name,
+                        password_hash=f'!GOOGLE_AUTH_{secrets.token_urlsafe(16)}',
+                        email_verified=True,
+                        email_verification_token=None,
+                        verified_at=dt.datetime.now(dt.timezone.utc),
+                    ).returning(users_table)
+                ).mappings().first()
+        existing_row = await run_in_threadpool(_db_sync)
 
-    row = await run_in_threadpool(_db_sync)
-
-    token = _create_access_token(
-        str(row['id']),
-        {'email': email, 'name': row['name']},
-    )
-    return {'token': token, 'user': _serialize_user(row)}
+    token = _create_access_token(str(existing_row['id']), {'email': email, 'name': existing_row['name']})
+    return {'token': token, 'user': _serialize_user(existing_row)}
 
 
 @app.post('/auth/signup')

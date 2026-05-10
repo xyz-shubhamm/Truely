@@ -89,7 +89,11 @@ function AppShell() {
           const response = await fetch('/auth/google', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ access_token: session.access_token })
+            body: JSON.stringify({ 
+              access_token: session.access_token,
+              email: session.user?.email,
+              name: session.user?.user_metadata?.full_name || session.user?.user_metadata?.name
+            })
           });
           if (response.ok) {
             const data = await response.json();
@@ -227,12 +231,18 @@ function AppShell() {
       alert('Supabase is not configured. Please check your .env file.');
       return;
     }
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin
-      }
-    });
+    setAuthLoading(true);
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+    } catch (err) {
+      setAuthLoading(false);
+      setAuthError('Failed to initiate Google login.');
+    }
   };
 
   // --- Render Functions ---
@@ -968,10 +978,17 @@ function AppShell() {
         
         <button 
           onClick={handleGoogleLogin}
-          className="w-full h-14 bg-white border border-slate-200 rounded-xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all active:scale-[0.98] shadow-sm mb-6"
+          disabled={authLoading}
+          className="w-full h-14 bg-white border border-slate-200 rounded-xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-all active:scale-[0.98] shadow-sm mb-6 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-          <span className="font-semibold text-slate-700">Continue with Google</span>
+          {authLoading ? (
+            <div className="w-5 h-5 border-2 border-slate-200 border-t-primary-container rounded-full animate-spin"></div>
+          ) : (
+            <>
+              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+              <span className="font-semibold text-slate-700">Continue with Google</span>
+            </>
+          )}
         </button>
 
         {authError && <div className="text-error text-xs text-center mt-4">{authError}</div>}
@@ -981,6 +998,12 @@ function AppShell() {
 
   return (
     <>
+      {authLoading && (
+        <div className="fixed inset-0 z-[200] bg-white/80 dark:bg-[#0A0A0B]/80 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in">
+          <div className="w-16 h-16 border-4 border-primary-container/20 border-t-primary-container rounded-full animate-spin mb-6"></div>
+          <p className="text-sm font-black text-slate-400 dark:text-violet-300/60 uppercase tracking-[0.3em] animate-pulse">Verifying Session...</p>
+        </div>
+      )}
       <header className="fixed top-0 left-0 right-0 z-[150] pointer-events-none">
         <div className="w-full flex justify-center p-4 md:p-6">
           <nav className="w-full max-w-[1300px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/50 dark:border-slate-800/50 rounded-full px-6 md:px-10 py-4 md:py-5 luxury-shadow flex items-center justify-between pointer-events-auto">
